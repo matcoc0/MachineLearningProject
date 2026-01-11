@@ -1,0 +1,32 @@
+[
+  {
+    "accuracy":0.7015851095,
+    "precision":0.5436049736,
+    "recall":0.7889719559,
+    "f1":0.643698791,
+    "approach":"GA",
+    "train_time_sec":212.7357456684,
+    "test_time_sec":0.015733242,
+    "ensemble_size":null
+  },
+  {
+    "accuracy":0.694698377,
+    "precision":0.5378142716,
+    "recall":0.7567606238,
+    "f1":0.6287726807,
+    "approach":"GA+AL",
+    "train_time_sec":29.4265682697,
+    "test_time_sec":0.0,
+    "ensemble_size":null
+  },
+  {
+    "accuracy":0.694698377,
+    "precision":0.5378142716,
+    "recall":0.7567606238,
+    "f1":0.6287726807,
+    "approach":"GA+AL+EL",
+    "train_time_sec":29.4265682697,
+    "test_time_sec":0.0335738659,
+    "ensemble_size":15.0
+  }
+]
