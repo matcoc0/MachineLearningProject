@@ -28,9 +28,7 @@ def run_all(config: Config) -> None:
 
     results: list[dict] = []
 
-    # =========================================================
-    # 1) GA baseline
-    # =========================================================
+    # GA baseline (best individual)
     print("\nRunning GA baseline...")
     ga_result = run_ga(
         dataset.x_train,
@@ -49,18 +47,15 @@ def run_all(config: Config) -> None:
         dataset.x_train.shape[1], config.random_seed, config.max_tree_height
     )
 
-    start = time.time()
     preds_ga, _ = predict_with_individual(
         toolbox, ga_result.best_individual, dataset.x_test
     )
-    test_time = time.time() - start
-
     metrics_ga = compute_metrics(dataset.y_test, preds_ga)
     metrics_ga.update(
         {
-            "approach": "GA",
+            "approach": "GA (best individual)",
             "train_time_sec": ga_result.train_time_sec,
-            "test_time_sec": test_time,
+            "model_type": "best_individual",
         }
     )
     results.append(metrics_ga)
@@ -68,94 +63,87 @@ def run_all(config: Config) -> None:
     save_log(ga_result.log, config.reports_dir, "ga_log.csv")
     plot_ga_history(config.reports_dir / "ga_log.csv", config.reports_dir, "ga")
 
-    print("GA metrics:")
-    print(classification_report(dataset.y_test, preds_ga, zero_division=0))
+    # GA + Active Learning (best individual)
+    print("\nRunning GA + Active Learning...")
+    ga_al_result = run_ga(
+        dataset.x_train,
+        dataset.y_train,
+        population_size=config.population_size,
+        generations=config.generations,
+        crossover_prob=config.crossover_prob,
+        mutation_prob=config.mutation_prob,
+        tournament_size=config.tournament_size,
+        max_tree_height=config.max_tree_height,
+        seed=config.random_seed,
+        active_learning=True,
+        al_initial_fraction=config.al_initial_fraction,
+        al_samples_per_round=config.al_samples_per_round,
+        al_interval=config.al_interval,
+        al_strategy=config.al_strategy,
+    )
 
-    # =========================================================
-    # 2) GA + Active Learning
-    # =========================================================
-    ga_al_result = None
-    toolbox_al = None
+    toolbox_al = build_toolbox(
+        dataset.x_train.shape[1], config.random_seed, config.max_tree_height
+    )
 
-    if config.al_enabled:
-        print("\nRunning GA + Active Learning...")
-        ga_al_result = run_ga(
-            dataset.x_train,
-            dataset.y_train,
-            population_size=config.population_size,
-            generations=config.generations,
-            crossover_prob=config.crossover_prob,
-            mutation_prob=config.mutation_prob,
-            tournament_size=config.tournament_size,
-            max_tree_height=config.max_tree_height,
-            seed=config.random_seed,
-            active_learning=True,
-            al_initial_fraction=config.al_initial_fraction,
-            al_samples_per_round=config.al_samples_per_round,
-            al_interval=config.al_interval,
-            al_strategy=config.al_strategy,
-        )
+    preds_al, _ = predict_with_individual(
+        toolbox_al, ga_al_result.best_individual, dataset.x_test
+    )
+    metrics_al = compute_metrics(dataset.y_test, preds_al)
+    metrics_al.update(
+        {
+            "approach": "GA+AL (best individual)",
+            "train_time_sec": ga_al_result.train_time_sec,
+            "model_type": "best_individual",
+        }
+    )
+    results.append(metrics_al)
 
-        toolbox_al = build_toolbox(
-            dataset.x_train.shape[1], config.random_seed, config.max_tree_height
-        )
+    save_log(ga_al_result.log, config.reports_dir, "ga_al_log.csv")
+    plot_ga_history(
+        config.reports_dir / "ga_al_log.csv", config.reports_dir, "ga_al"
+    )
 
-        start = time.time()
-        preds_al, _ = predict_with_individual(
-            toolbox_al, ga_al_result.best_individual, dataset.x_test
-        )
-        test_time = time.time() - start
+    # Ensemble learning: soft vs hard voting
+    print("\nRunning Ensemble (soft voting)...")
+    preds_soft = ensemble_predict(
+        ga_al_result.population,
+        toolbox_al,
+        dataset.x_test,
+        config.ensemble_size,
+        voting="soft",
+    )
+    metrics_soft = compute_metrics(dataset.y_test, preds_soft)
+    metrics_soft.update(
+        {
+            "approach": "GA+AL+EL (soft voting)",
+            "train_time_sec": ga_al_result.train_time_sec,
+            "model_type": "ensemble",
+            "voting": "soft",
+        }
+    )
+    results.append(metrics_soft)
 
-        metrics_al = compute_metrics(dataset.y_test, preds_al)
-        metrics_al.update(
-            {
-                "approach": "GA+AL",
-                "train_time_sec": ga_al_result.train_time_sec,
-                "test_time_sec": test_time,
-            }
-        )
-        results.append(metrics_al)
+    print("\nRunning Ensemble (hard voting)...")
+    preds_hard = ensemble_predict(
+        ga_al_result.population,
+        toolbox_al,
+        dataset.x_test,
+        config.ensemble_size,
+        voting="hard",
+    )
+    metrics_hard = compute_metrics(dataset.y_test, preds_hard)
+    metrics_hard.update(
+        {
+            "approach": "GA+AL+EL (hard voting)",
+            "train_time_sec": ga_al_result.train_time_sec,
+            "model_type": "ensemble",
+            "voting": "hard",
+        }
+    )
+    results.append(metrics_hard)
 
-        save_log(ga_al_result.log, config.reports_dir, "ga_al_log.csv")
-        plot_ga_history(
-            config.reports_dir / "ga_al_log.csv", config.reports_dir, "ga_al"
-        )
-
-        print("GA+AL metrics:")
-        print(classification_report(dataset.y_test, preds_al, zero_division=0))
-
-    # =========================================================
-    # 3) Ensemble GA + AL + EL
-    # =========================================================
-    if config.al_enabled and ga_al_result is not None and toolbox_al is not None:
-        print("\nRunning Ensemble (GA+AL+EL)...")
-
-        start = time.time()
-        ensemble_preds = ensemble_predict(
-            ga_al_result.population,
-            toolbox_al,
-            dataset.x_test,
-            config.ensemble_size,
-        )
-        test_time = time.time() - start
-
-        metrics_ens = compute_metrics(dataset.y_test, ensemble_preds)
-        metrics_ens.update(
-            {
-                "approach": "GA+AL+EL",
-                "train_time_sec": ga_al_result.train_time_sec,
-                "test_time_sec": test_time,
-                "ensemble_size": config.ensemble_size,
-            }
-        )
-        results.append(metrics_ens)
-
-        print("GA+AL+EL metrics:")
-        print(classification_report(dataset.y_test, ensemble_preds, zero_division=0))
-
-    # =========================================================
     # Save global reports
-    # =========================================================
     save_metrics(results, config.reports_dir)
     plot_metrics(results, config.reports_dir)
 

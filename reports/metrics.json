@@ -4,29 +4,39 @@
     "precision":0.5436049736,
     "recall":0.7889719559,
     "f1":0.643698791,
-    "approach":"GA",
-    "train_time_sec":298.1417601109,
-    "test_time_sec":0.0015366077,
-    "ensemble_size":null
+    "approach":"GA (best individual)",
+    "train_time_sec":358.6145675182,
+    "model_type":"best_individual",
+    "voting":null
   },
   {
     "accuracy":0.694698377,
     "precision":0.5378142716,
     "recall":0.7567606238,
     "f1":0.6287726807,
-    "approach":"GA+AL",
-    "train_time_sec":47.9087605476,
-    "test_time_sec":0.0158543587,
-    "ensemble_size":null
+    "approach":"GA+AL (best individual)",
+    "train_time_sec":64.2736287117,
+    "model_type":"best_individual",
+    "voting":null
   },
   {
     "accuracy":0.694698377,
     "precision":0.5378142716,
     "recall":0.7567606238,
     "f1":0.6287726807,
-    "approach":"GA+AL+EL",
-    "train_time_sec":47.9087605476,
-    "test_time_sec":0.0462727547,
-    "ensemble_size":15.0
+    "approach":"GA+AL+EL (soft voting)",
+    "train_time_sec":64.2736287117,
+    "model_type":"ensemble",
+    "voting":"soft"
+  },
+  {
+    "accuracy":0.694698377,
+    "precision":0.5378142716,
+    "recall":0.7567606238,
+    "f1":0.6287726807,
+    "approach":"GA+AL+EL (hard voting)",
+    "train_time_sec":64.2736287117,
+    "model_type":"ensemble",
+    "voting":"hard"
   }
 ]
