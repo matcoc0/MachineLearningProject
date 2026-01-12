@@ -62,8 +62,14 @@ def build_toolbox(n_features: int, seed: int, max_tree_height: int):
     toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
     toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
 
-    toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=max_tree_height))
-    toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=max_tree_height))
+    toolbox.decorate(
+        "mate",
+        gp.staticLimit(key=operator.attrgetter("height"), max_value=max_tree_height),
+    )
+    toolbox.decorate(
+        "mutate",
+        gp.staticLimit(key=operator.attrgetter("height"), max_value=max_tree_height),
+    )
 
     random.seed(seed)
     np.random.seed(seed)
@@ -139,6 +145,8 @@ def run_ga(
     toolbox.register("evaluate", _evaluate_individual, toolbox=toolbox, data=data)
 
     population = toolbox.population(n=population_size)
+
+    print(f"[GA] Initial evaluation of {len(population)} individuals...")
     start = time.time()
 
     invalid = [ind for ind in population if not ind.fitness.valid]
@@ -146,16 +154,18 @@ def run_ga(
         ind.fitness.values = fit
 
     log = []
+
     for gen in range(1, generations + 1):
-        print(f"Generation {gen}/{generations}", end="\r")
+        print(f"[GA] Generation {gen}/{generations} | Train size = {len(data['x'])}")
+
         offspring = toolbox.select(population, len(population))
         offspring = list(map(toolbox.clone, offspring))
 
-        for child1, child2 in zip(offspring[::2], offspring[1::2]):
+        for c1, c2 in zip(offspring[::2], offspring[1::2]):
             if rng.random() < crossover_prob:
-                toolbox.mate(child1, child2)
-                del child1.fitness.values
-                del child2.fitness.values
+                toolbox.mate(c1, c2)
+                del c1.fitness.values
+                del c2.fitness.values
 
         for mutant in offspring:
             if rng.random() < mutation_prob:
@@ -167,17 +177,15 @@ def run_ga(
             ind.fitness.values = fit
 
         population[:] = offspring
+
         best = tools.selBest(population, 1)[0]
+        fitnesses = [ind.fitness.values[0] for ind in population]
+        mean_fitness = float(np.mean(fitnesses))
 
         if active_learning and pool_x is not None and len(pool_x) > 0 and gen % al_interval == 0:
             scorer = lambda px: toolbox.compile(expr=best)(*px.T)
             pool_x, pool_y, new_x, new_y = _active_sample(
-                pool_x,
-                pool_y,
-                al_samples_per_round,
-                al_strategy,
-                scorer,
-                seed + gen,
+                pool_x, pool_y, al_samples_per_round, al_strategy, scorer, seed + gen
             )
             if len(new_x) > 0:
                 data["x"] = np.vstack([data["x"], new_x])
@@ -187,10 +195,19 @@ def run_ga(
             {
                 "generation": gen,
                 "best_f1": float(best.fitness.values[0]),
+                "mean_f1": mean_fitness,
                 "train_size": int(len(data["x"])),
             }
         )
 
     train_time = time.time() - start
     best = tools.selBest(population, 1)[0]
-    return GAResult(population=population, best_individual=best, log=log, train_time_sec=train_time)
+
+    print(f"[GA] Finished in {train_time:.1f} seconds")
+
+    return GAResult(
+        population=population,
+        best_individual=best,
+        log=log,
+        train_time_sec=train_time,
+    )

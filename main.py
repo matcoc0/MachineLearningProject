@@ -7,8 +7,19 @@ from config import Config
 from pipeline import run_all
 
 
+def set_global_seed(seed: int) -> None:
+    import random
+    import numpy as np
+    import os
+
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+
 def main() -> None:
     config = Config()
+    set_global_seed(config.random_seed)
     run_all(config)
 
 
