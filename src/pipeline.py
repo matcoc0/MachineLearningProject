@@ -20,17 +20,10 @@ from reporting import (
 
 
 def run_all(config: Config) -> None:
-    # ---------------------------------------------------------
-    # Reports directories
-    # ---------------------------------------------------------
     ensure_reports_dir(config.reports_dir)
     ensure_subdirs(config.reports_dir)
-
-    # ---------------------------------------------------------
-    # Exploratory Data Analysis (EDA)
-    # ---------------------------------------------------------
+    
     if config.run_eda:
-        print("\nRunning Exploratory Data Analysis (EDA)...")
         run_eda(
             data_path=str(config.data_path),
             reports_dir=config.reports_dir,
@@ -38,23 +31,15 @@ def run_all(config: Config) -> None:
             test_size=config.test_size,
         )
 
-    # ---------------------------------------------------------
-    # Load & preprocess data
-    # ---------------------------------------------------------
-    print("\nLoading and preprocessing dataset...")
     dataset = load_and_preprocess(
         str(config.data_path),
         config.test_size,
         config.random_seed,
     )
-    print(f"Train size: {len(dataset.x_train)} | Test size: {len(dataset.x_test)}")
 
-    results: list[dict] = []
+    results = []
 
-    # =========================================================
-    # 1) GA baseline
-    # =========================================================
-    print("\nRunning GA baseline...")
+    print("\nRunning GA...")
     ga_result = run_ga(
         dataset.x_train,
         dataset.y_train,
@@ -65,47 +50,22 @@ def run_all(config: Config) -> None:
         tournament_size=config.tournament_size,
         max_tree_height=config.max_tree_height,
         seed=config.random_seed,
-        active_learning=False,
     )
 
-    toolbox = build_toolbox(
-        dataset.x_train.shape[1],
-        config.random_seed,
-        config.max_tree_height,
-    )
+    toolbox = build_toolbox(dataset.x_train.shape[1], config.random_seed, config.max_tree_height)
+    preds_ga, _ = predict_with_individual(toolbox, ga_result.best_individual, dataset.x_test)
 
-    t0 = time.time()
-    preds_ga, _ = predict_with_individual(
-        toolbox,
-        ga_result.best_individual,
-        dataset.x_test,
-    )
-    test_time_ga = time.time() - t0
-
-    metrics_ga = compute_metrics(dataset.y_test, preds_ga)
-    metrics_ga.update(
+    results.append(
         {
+            **compute_metrics(dataset.y_test, preds_ga),
             "approach": "GA",
             "train_time_sec": ga_result.train_time_sec,
-            "test_time_sec": test_time_ga,
         }
     )
-    results.append(metrics_ga)
 
     save_log(ga_result.log, config.reports_dir / "training", "ga_log.csv")
-    plot_ga_history(
-        config.reports_dir / "training" / "ga_log.csv",
-        config.reports_dir / "training",
-        prefix="ga",
-    )
 
-    print("GA results:")
-    print(classification_report(dataset.y_test, preds_ga, zero_division=0))
-
-    # =========================================================
-    # 2) GA + Active Learning
-    # =========================================================
-    print("\nRunning GA + Active Learning...")
+    print("\nRunning GA + AL...")
     ga_al_result = run_ga(
         dataset.x_train,
         dataset.y_train,
@@ -123,45 +83,20 @@ def run_all(config: Config) -> None:
         al_strategy=config.al_strategy,
     )
 
-    toolbox_al = build_toolbox(
-        dataset.x_train.shape[1],
-        config.random_seed,
-        config.max_tree_height,
-    )
+    toolbox_al = build_toolbox(dataset.x_train.shape[1], config.random_seed, config.max_tree_height)
+    preds_al, _ = predict_with_individual(toolbox_al, ga_al_result.best_individual, dataset.x_test)
 
-    t0 = time.time()
-    preds_al, _ = predict_with_individual(
-        toolbox_al,
-        ga_al_result.best_individual,
-        dataset.x_test,
-    )
-    test_time_al = time.time() - t0
-
-    metrics_al = compute_metrics(dataset.y_test, preds_al)
-    metrics_al.update(
+    results.append(
         {
+            **compute_metrics(dataset.y_test, preds_al),
             "approach": "GA+AL",
             "train_time_sec": ga_al_result.train_time_sec,
-            "test_time_sec": test_time_al,
         }
     )
-    results.append(metrics_al)
 
     save_log(ga_al_result.log, config.reports_dir / "training", "ga_al_log.csv")
-    plot_ga_history(
-        config.reports_dir / "training" / "ga_al_log.csv",
-        config.reports_dir / "training",
-        prefix="ga_al",
-    )
 
-    print("GA+AL results:")
-    print(classification_report(dataset.y_test, preds_al, zero_division=0))
-
-    # =========================================================
-    # 3) Ensemble (PROD = soft voting only)
-    # =========================================================
-    print("\nRunning Ensemble (GA+AL+EL) ... soft voting (PROD)...")
-    t0 = time.time()
+    print("\nRunning Ensemble (soft voting)...")
     preds_soft = ensemble_predict(
         ga_al_result.population,
         toolbox_al,
@@ -169,40 +104,30 @@ def run_all(config: Config) -> None:
         config.ensemble_size,
         voting="soft",
     )
-    test_time_soft = time.time() - t0
 
-    metrics_soft = compute_metrics(dataset.y_test, preds_soft)
-    metrics_soft.update(
+    results.append(
         {
+            **compute_metrics(dataset.y_test, preds_soft),
             "approach": "GA+AL+EL (soft)",
             "train_time_sec": ga_al_result.train_time_sec,
-            "test_time_sec": test_time_soft,
-            "ensemble_size": config.ensemble_size,
         }
     )
-    results.append(metrics_soft)
 
-    save_log(
-        [metrics_soft],
-        config.reports_dir / "training",
-        "ga_al_el_log.csv",
-    )
+    save_metrics(results, config.reports_dir / "results")
+    plot_metrics(results, config.reports_dir / "results")
+    
+    print("\nReports saved in the reports folder.")
 
-    print("GA+AL+EL (soft voting) results:")
-    print(classification_report(dataset.y_test, preds_soft, zero_division=0))
+    # 🔥 EXPERIMENTS (ONLY HERE)
+    if config.run_experiments:
+        from experiments import run_experiments
 
-    # =========================================================
-    # Save final PROD results
-    # =========================================================
-    save_metrics(
-        results,
-        config.reports_dir / "results",
-        filename_prefix=None,
-    )
-    plot_metrics(
-        results,
-        config.reports_dir / "results",
-        filename=None,
-    )
+        run_experiments(
+            config,
+            dataset,
+            results,
+            ga_al_result,
+            toolbox_al,
+        )
 
-    print("\nSaved reports to:", config.reports_dir)
+    print("\nExprimental Results saved in the reports/results/experimental folder.")

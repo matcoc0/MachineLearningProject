@@ -25,12 +25,7 @@ def main() -> None:
     # Run main (final) pipeline
     run_all(config)
 
-    # Optional experiments (disabled by default)
-    if config.run_experiments:
-        from experiments import run_experiments
 
-        print("\n[MAIN] Running additional experiments...")
-        run_experiments(config)
 
 
 if __name__ == "__main__":

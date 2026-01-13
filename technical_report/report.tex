@@ -1,127 +1,48 @@
+\section{Introduction}
 
-points à corriger : 
-rien ne s'affiche dans /data. 
-le weighted voting s'execute dans le pipeline, c'est seulement censé se mettre pour le soft voting, et on est d'accord que c'est seulement ça (pour AL+EL+GA) qui est implémenté dans le script suivant : "from __future__ import annotations
+The discovery of the Higgs boson represents a major milestone in modern particle physics.
+In high-energy physics experiments, such as those conducted at the Large Hadron Collider (LHC),
+the identification of Higgs boson events relies on the analysis of large volumes of data
+characterized by complex, high-dimensional and noisy features.
+The Higgs Boson Machine Learning Challenge dataset provides a realistic benchmark
+for studying advanced classification methods in this context, where the objective is to
+distinguish signal events corresponding to Higgs boson decays from background events.
 
-import time
+Traditional machine learning approaches may struggle with such data due to
+non-linear decision boundaries, feature correlations, class imbalance, and the high cost
+of labeling large datasets.
+To address these challenges, evolutionary and adaptive learning techniques have gained
+attention as flexible alternatives capable of exploring complex hypothesis spaces.
 
-from sklearn.metrics import classification_report
+In this project, we investigate the use of \textit{Genetic Programming} (GP) as a core
+classification model.
+GP evolves symbolic expressions representing decision functions and is particularly well-suited
+for non-linear and non-parametric problems.
+However, evolutionary algorithms can be computationally expensive and sensitive to the
+size and quality of the training data.
+To mitigate these limitations, two complementary paradigms are integrated:
+\textit{Active Learning} (AL) and \textit{Ensemble Learning} (EL).
 
-from config import Config
-from data import load_and_preprocess
-from ensemble import ensemble_predict
-from ga import build_toolbox, run_ga
-from metrics import compute_metrics, predict_with_individual
-from reporting import ensure_reports_dir, plot_metrics, save_log, save_metrics
+Active Learning aims to reduce labeling costs and improve learning efficiency by iteratively
+selecting the most informative samples from an unlabeled pool.
+In this work, an uncertainty-based sampling strategy is employed to dynamically enrich
+the training set during the evolutionary process.
+Ensemble Learning, on the other hand, combines multiple models to improve generalization
+performance and robustness.
+Here, ensembles are constructed from populations evolved by Genetic Programming,
+using voting-based aggregation strategies.
 
+The main objective of this report is to analyze, implement, and compare the following approaches:
+(i) a baseline Genetic Programming classifier,
+(ii) Genetic Programming combined with Active Learning,
+and (iii) an ensemble of Genetic Programming models trained with Active Learning.
+The comparison is conducted in terms of classification performance, convergence behavior,
+and computational cost.
 
-def run_all(config: Config) -> None:
-    ensure_reports_dir(config.reports_dir)
-
-    print("Loading and preprocessing dataset...")
-    dataset = load_and_preprocess(str(config.data_path), config.test_size, config.random_seed)
-    print(f"Train size: {len(dataset.x_train)} | Test size: {len(dataset.x_test)}")
-
-    results = []
-
-    print("\nRunning GA baseline...")
-    ga_result = run_ga(
-        dataset.x_train,
-        dataset.y_train,
-        population_size=config.population_size,
-        generations=config.generations,
-        crossover_prob=config.crossover_prob,
-        mutation_prob=config.mutation_prob,
-        tournament_size=config.tournament_size,
-        max_tree_height=config.max_tree_height,
-        seed=config.random_seed,
-        active_learning=False,
-    )
-    toolbox = build_toolbox(dataset.x_train.shape[1], config.random_seed, config.max_tree_height)
-
-    start = time.time()
-    preds, _ = predict_with_individual(toolbox, ga_result.best_individual, dataset.x_test)
-    test_time = time.time() - start
-    metrics = compute_metrics(dataset.y_test, preds)
-    metrics.update(
-        {
-            "approach": "GA",
-            "train_time_sec": ga_result.train_time_sec,
-            "test_time_sec": test_time,
-        }
-    )
-    results.append(metrics)
-    save_log(ga_result.log, config.reports_dir, "ga_log.csv")
-
-    print("GA metrics:")
-    print(classification_report(dataset.y_test, preds, zero_division=0))
-
-    if config.al_enabled:
-        print("\nRunning GA + Active Learning...")
-        ga_al_result = run_ga(
-            dataset.x_train,
-            dataset.y_train,
-            population_size=config.population_size,
-            generations=config.generations,
-            crossover_prob=config.crossover_prob,
-            mutation_prob=config.mutation_prob,
-            tournament_size=config.tournament_size,
-            max_tree_height=config.max_tree_height,
-            seed=config.random_seed,
-            active_learning=True,
-            al_initial_fraction=config.al_initial_fraction,
-            al_samples_per_round=config.al_samples_per_round,
-            al_interval=config.al_interval,
-            al_strategy=config.al_strategy,
-        )
-        toolbox_al = build_toolbox(dataset.x_train.shape[1], config.random_seed, config.max_tree_height)
-
-        start = time.time()
-        preds_al, _ = predict_with_individual(toolbox_al, ga_al_result.best_individual, dataset.x_test)
-        test_time = time.time() - start
-        metrics_al = compute_metrics(dataset.y_test, preds_al)
-        metrics_al.update(
-            {
-                "approach": "GA+AL",
-                "train_time_sec": ga_al_result.train_time_sec,
-                "test_time_sec": test_time,
-            }
-        )
-        results.append(metrics_al)
-        save_log(ga_al_result.log, config.reports_dir, "ga_al_log.csv")
-
-        print("GA+AL metrics:")
-        print(classification_report(dataset.y_test, preds_al, zero_division=0))
-
-        print("\nRunning Ensemble (GA+AL+EL)...")
-        start = time.time()
-        ensemble_preds = ensemble_predict(
-            ga_al_result.population,
-            toolbox_al,
-            dataset.x_test,
-            config.ensemble_size,
-        )
-        test_time = time.time() - start
-        metrics_ens = compute_metrics(dataset.y_test, ensemble_preds)
-        metrics_ens.update(
-            {
-                "approach": "GA+AL+EL",
-                "train_time_sec": ga_al_result.train_time_sec,
-                "test_time_sec": test_time,
-                "ensemble_size": config.ensemble_size,
-            }
-        )
-        results.append(metrics_ens)
-        save_log([metrics_ens], config.reports_dir, "ga_al_el_log.csv")
-
-        print("GA+AL+EL metrics:")
-        print(classification_report(dataset.y_test, ensemble_preds, zero_division=0))
-
-    save_metrics(results, config.reports_dir)
-    plot_metrics(results, config.reports_dir)
-
-    print("\nSaved reports to:", config.reports_dir)
-"
-il faut que le report pour GA+AL+EL soit affiché dans les logs comme pour GA et GA+AL.
-De plus, je pense qu'il est nécessaire de faire en sorte de ne pas avoir à rerun les approches déjà faites si elles ont déjà été run. Dans le sens où il faut juste append à ce uqi est déjà présent les expériments pour ensuite stocker dans experiments ce qui n'a pas été fait dans la pipeline en prod.
-Pas besoin de refaire le pre-processing, vu qu'il est déjà fait au début de la pipeline. experiments est une brique qu'on rajoute à la pipeline si son booléen d'activation est true.
+The remainder of this report is organized as follows.
+Section~\ref{sec:dataset} presents the dataset and its main characteristics.
+Section~\ref{sec:eda} provides an exploratory data analysis to highlight key properties of the data.
+Section~\ref{sec:preprocessing} describes the preprocessing pipeline applied prior to training.
+Sections~\ref{sec:ga}, \ref{sec:ga_al}, and \ref{sec:ensemble} detail the learning methodologies.
+Experimental results and comparisons are discussed in Section~\ref{sec:results},
+followed by conclusions and perspectives in the final section.
