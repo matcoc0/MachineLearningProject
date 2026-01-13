@@ -1,5 +1,96 @@
-\section{Introduction}
+\documentclass[12pt,a4paper]{article}
 
+% --------------------
+% Packages essentiels
+% --------------------
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{titlesec}
+\usepackage{float}
+
+% --------------------
+% Mise en forme globale
+% --------------------
+\setstretch{1.15}            % interligne académique standard
+\setlength{\parskip}{0.4em}  % espace entre paragraphes
+\setlength{\parindent}{0pt}  % pas d'indentation
+
+% --------------------
+% Titres (lisibles, sobres)
+% --------------------
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+\titleformat{\paragraph}
+  {\normalfont\normalsize\bfseries}{\theparagraph}{1em}{}
+
+\titlespacing*{\section}{0pt}{1.5em}{0.8em}
+\titlespacing*{\subsection}{0pt}{1.2em}{0.6em}
+\titlespacing*{\paragraph}{0pt}{1em}{0.4em}
+
+% --------------------
+% Métadonnées PDF
+% --------------------
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black,
+  pdftitle={Phishing Email Detection using Machine Learning and Deep Learning},
+  pdfauthor={Your Name et al}
+}
+
+% --------------------
+% Début document
+% --------------------
+% =========================================================
+% Page de titre
+% =========================================================
+\begin{document}
+\begin{titlepage}
+    \centering
+    \vspace*{3cm}
+
+    {\LARGE \textbf{Final Report -- Machine Learning Project}\par}
+    \vspace{0.5cm}
+    {\Large Combining Evolutionary Learning, Active Learning and 
+Ensemble Learning to solve the Higgs Bozon Detection \par}
+
+    \vspace{2cm}
+
+    {\large
+    Hugo BONNEL \\
+    Mathieu COWAN
+    \par}
+
+    \vspace{0.5cm}
+
+    {\large
+    ESILV -- A5
+    \par}
+
+    \vfill
+
+    {\large
+    Academic Year 2025--2026
+    \par}
+
+\end{titlepage}
+
+\tableofcontents
+ 
+
+\newpage
+\section{Introduction}
 The discovery of the Higgs boson represents a major milestone in modern particle physics.
 In high-energy physics experiments, such as those conducted at the Large Hadron Collider (LHC),
 the identification of Higgs boson events relies on the analysis of large volumes of data
@@ -46,3 +137,623 @@ Section~\ref{sec:preprocessing} describes the preprocessing pipeline applied pri
 Sections~\ref{sec:ga}, \ref{sec:ga_al}, and \ref{sec:ensemble} detail the learning methodologies.
 Experimental results and comparisons are discussed in Section~\ref{sec:results},
 followed by conclusions and perspectives in the final section.
+
+\section{Dataset Description}
+\label{sec:dataset}
+
+The experiments conducted in this project are based on the Higgs Boson Machine Learning
+Challenge dataset, originally released to support the development of advanced classification
+methods for high-energy physics applications.
+The dataset simulates proton–proton collision events recorded at the Large Hadron Collider (LHC),
+with the goal of distinguishing Higgs boson signal events from background processes.
+
+Each observation corresponds to a single collision event described by a set of numerical features
+derived from low-level detector measurements and high-level reconstructed variables.
+After removing non-feature columns, the dataset contains \textbf{30 numerical features} and
+one target label.
+The target variable \texttt{Label} is binary, where:
+\begin{itemize}
+    \item \texttt{b} represents background events,
+    \item \texttt{s} represents signal events corresponding to Higgs boson decays.
+\end{itemize}
+
+The dataset is characterized by a strong class imbalance.
+As illustrated in Figure~\ref{fig:label_distribution}, background events significantly outnumber
+signal events.
+This imbalance reflects realistic experimental conditions and motivates the use of evaluation
+metrics beyond simple accuracy, such as precision, recall, and F1-score.
+
+Several features contain missing values, encoded in the original dataset using the value $-999$.
+The proportion of missing values varies across features, as summarized in the exploratory analysis.
+This characteristic requires dedicated preprocessing steps prior to model training.
+
+For all experiments, the dataset is split into training and test sets using a stratified strategy,
+preserving the original class distribution.
+The test set represents 20\% of the data and is held out throughout training and model selection
+to provide an unbiased evaluation of generalization performance.
+
+A detailed exploratory analysis of feature distributions, correlations, missing values, and
+train–test distribution shifts is presented in the following section.
+
+
+\section{Exploratory Data Analysis (EDA)}
+
+This section presents an exploratory analysis of the dataset used in this project.
+All analyses and visualizations were automatically generated by the EDA pipeline
+and saved in the \texttt{reports/data/} directory.
+
+\subsection{Dataset Overview}
+
+A global overview of the dataset is provided in the file
+\texttt{dataset\_overview.json}.
+This file summarizes the main structural properties of the dataset, including:
+\begin{itemize}
+    \item the total number of samples,
+    \item the number of features,
+    \item the list of feature names,
+    \item the data types associated with each feature.
+\end{itemize}
+
+This confirms that the dataset is composed of numerical features only, with a
+single categorical target variable (\texttt{Label}), and contains
+\textbf{818,238 samples} and \textbf{30 input features}.
+
+\subsection{Label Distribution}
+
+The class distribution is analyzed using the files:
+\begin{itemize}
+    \item \texttt{label\_counts.csv},
+    \item \texttt{label\_distribution.png}.
+\end{itemize}
+
+Figure~\ref{fig:label_distribution} shows the number of samples per class.
+The dataset is moderately imbalanced, with a majority class (\texttt{b})
+and a minority class (\texttt{s}).
+
+[label_distribution]
+
+This class imbalance motivates the use of the F1-score as the main evaluation
+metric and justifies the exploration of Active Learning strategies.
+
+\subsection{Missing Values Analysis}
+
+The proportion of missing values per feature is reported in
+\texttt{missing\_values\_ratio.csv}.
+
+The analysis shows that some features contain missing values, while others are
+fully observed. Missing values are not uniformly distributed across features,
+which motivates the need for a robust preprocessing strategy before training.
+
+\subsection{Feature Summary Statistics}
+
+The file \texttt{feature\_summary.csv} provides descriptive statistics for each
+feature, including:
+\begin{itemize}
+    \item minimum and maximum values,
+    \item mean and standard deviation,
+    \item proportion of missing values,
+    \item detection of potential outliers.
+\end{itemize}
+
+This analysis highlights large differences in feature scales, which may impact
+model training and justifies the use of scale-invariant models such as Genetic
+Programming.
+
+\subsection{Correlation Analysis}
+
+Feature correlations are analyzed using:
+\begin{itemize}
+    \item \texttt{correlation\_matrix.csv},
+    \item \texttt{correlation\_heatmap.png}.
+\end{itemize}
+
+Figure~\ref{fig:correlation_heatmap} shows the correlation heatmap between all
+numerical features.
+
+[correlation_heatmap]
+
+Several groups of highly correlated features can be observed, indicating a
+certain level of redundancy in the feature space. However, no extreme correlations
+suggesting trivial feature elimination are observed.
+
+\subsection{Principal Component Analysis (PCA)}
+
+A Principal Component Analysis was performed to better understand the structure
+of the feature space. The results are saved in:
+\begin{itemize}
+    \item \texttt{pca\_2d\_projection.png},
+    \item \texttt{pca\_explained\_variance.png}.
+\end{itemize}
+
+Figure~\ref{fig:pca_projection} shows the projection of the data onto the first
+two principal components, colored by class label.
+
+[pca_2d_projection]
+
+The classes are not linearly separable in this reduced space, indicating that
+non-linear decision boundaries are required.
+
+Figure~\ref{fig:pca_variance} presents the explained variance ratio of the first
+principal components.
+
+[pca_explained_variance]
+
+The variance is distributed across many components, confirming that the dataset
+has a relatively high intrinsic dimensionality.
+
+\subsection{Train/Test Distribution Shift}
+
+The file \texttt{data/train\_test\_shift.csv} compares feature statistics between the
+training and test splits.
+
+This analysis shows no significant distribution shift between the two sets,
+indicating that the train/test split is representative and suitable for model
+evaluation.
+
+\section{Data Preprocessing}
+
+This section describes the preprocessing pipeline applied to the dataset before
+model training. The preprocessing steps were designed to ensure numerical
+stability, reproducibility, and fair evaluation while remaining simple and
+transparent.
+
+All preprocessing operations are implemented in the file \texttt{data.py} and
+are applied identically for all model variants.
+
+\subsection{Feature Selection}
+
+Several non-informative or metadata-related columns are removed from the dataset
+prior to training. These include identifiers and competition-specific fields that
+do not carry predictive information.
+
+The removed columns are:
+\begin{itemize}
+    \item \texttt{EventId},
+    \item \texttt{Weight},
+    \item \texttt{KaggleSet},
+    \item \texttt{KaggleWeight}.
+\end{itemize}
+
+After this step, the dataset contains \textbf{30 numerical input features}.
+
+\subsection{Label Encoding}
+
+The target variable \texttt{Label} is encoded into a binary numerical format:
+\begin{itemize}
+    \item \texttt{b} $\rightarrow$ 0,
+    \item \texttt{s} $\rightarrow$ 1.
+\end{itemize}
+
+This encoding allows direct compatibility with binary classification metrics
+such as precision, recall, and F1-score.
+
+\subsection{Missing Value Handling}
+
+Missing values in the dataset are originally encoded using the sentinel value
+\texttt{-999}. These values are first replaced by \texttt{NaN}.
+
+A mean imputation strategy is then applied using statistics computed
+\textbf{only on the training set}. This prevents information leakage from the
+test set into the training process.
+
+The same imputation parameters are subsequently applied to the test set.
+
+\subsection{Feature Scaling}
+
+After imputation, all features are standardized using a \texttt{StandardScaler}.
+Each feature is transformed to have zero mean and unit variance.
+
+As for imputation, the scaler is fitted exclusively on the training data and then
+applied to the test data using the same parameters.
+
+Although Genetic Programming models are generally less sensitive to feature
+scaling than linear models, this step improves numerical stability and ensures
+consistent behavior across different operators.
+
+\subsection{Train/Test Split}
+
+The dataset is split into training and test sets using a stratified split, in
+order to preserve the original class distribution in both subsets.
+
+The split configuration is as follows:
+\begin{itemize}
+    \item test size: 20\%,
+    \item stratification on the target label,
+    \item fixed random seed for reproducibility.
+\end{itemize}
+
+This results in:
+\begin{itemize}
+    \item 654,590 samples in the training set,
+    \item 163,648 samples in the test set.
+\end{itemize}
+
+\subsection{Summary}
+
+The preprocessing pipeline is deliberately kept simple and robust. It ensures:
+\begin{itemize}
+    \item no data leakage between training and test sets,
+    \item consistent handling of missing values,
+    \item numerical stability for evolutionary operators,
+    \item full reproducibility of experimental results.
+\end{itemize}
+
+No aggressive feature engineering or dimensionality reduction is applied at this
+stage, as the goal is to evaluate the learning capacity of Genetic Programming
+and Active Learning methods on the original feature space.
+
+\section{Methodology}
+
+This section describes the complete machine learning pipeline implemented for the Higgs boson classification task, from data preprocessing to model training, ensemble learning, and evaluation. The methodology strictly follows the structure of the implemented codebase and ensures full reproducibility.
+
+\subsection{Overall Pipeline Structure}
+
+The global execution flow is orchestrated by the main script (\texttt{main.py}), which sequentially performs:
+\begin{itemize}
+    \item Exploratory Data Analysis (EDA)
+    \item Data preprocessing and splitting
+    \item Genetic Algorithm (GA) training
+    \item Genetic Algorithm with Active Learning (GA+AL)
+    \item Ensemble Learning based on GA+AL
+    \item Optional experimental variants
+\end{itemize}
+
+The core logic is implemented in \texttt{pipeline.py}, ensuring a clear separation between production models and experimental extensions.
+
+\subsection{Data Preprocessing}
+
+Data preprocessing is handled in the module \texttt{data.py}.  
+The original dataset is loaded from:
+\begin{center}
+\texttt{[atlas-higgs-challenge-2014-v2.csv.gz]}
+\end{center}
+
+The following preprocessing steps are applied:
+
+\begin{enumerate}
+    \item \textbf{Removal of non-feature columns}: identifiers and competition-related metadata are removed.
+    \item \textbf{Label encoding}: the original labels (\texttt{b}, \texttt{s}) are mapped to binary values (0, 1).
+    \item \textbf{Missing value handling}: missing values encoded as \texttt{-999} are replaced by \texttt{NaN}, followed by mean imputation.
+    \item \textbf{Feature scaling}: all numerical features are standardized using z-score normalization.
+    \item \textbf{Train/test split}: the dataset is split into training and testing sets using a stratified split to preserve class proportions.
+\end{enumerate}
+
+All preprocessing parameters are learned exclusively from the training set to avoid data leakage.
+
+\subsection{Genetic Programming Model}
+
+The primary classifier is based on Genetic Programming, implemented using the DEAP framework in \texttt{ga.py}.
+
+\subsubsection{Individual Representation}
+
+Each individual represents a symbolic mathematical expression composed of:
+\begin{itemize}
+    \item Arithmetic operators: addition, subtraction, multiplication
+    \item Protected division operator
+    \item Unary negation
+    \item Ephemeral random constants
+\end{itemize}
+
+The trees operate directly on the input feature space, producing continuous outputs that are thresholded to obtain binary predictions.
+
+\subsubsection{Fitness Function}
+
+The fitness of each individual is evaluated using the F1-score on the current training set:
+\[
+\text{fitness} = \text{F1-score}(y, \hat{y})
+\]
+
+This choice ensures robustness to class imbalance, which is observed in the dataset.
+
+\subsubsection{Evolutionary Process}
+
+The evolutionary loop follows a standard genetic algorithm structure:
+\begin{itemize}
+    \item Tournament selection
+    \item One-point crossover
+    \item Uniform mutation
+    \item Static depth constraint to prevent tree bloat
+\end{itemize}
+
+At each generation, statistics are logged, including:
+\begin{itemize}
+    \item Generation index
+    \item Best F1-score
+    \item Mean population F1-score
+    \item Current training set size
+\end{itemize}
+
+These logs are saved to:
+\begin{center}
+\texttt{[reports/training/ga\_log.csv]}
+\end{center}
+
+\subsection{Active Learning Strategy}
+
+An Active Learning extension is implemented within the same genetic framework.
+
+\subsubsection{Initial Labeled Set}
+
+At the beginning of training, only a fraction of the training data is labeled:
+\[
+\text{Initial fraction} = [al\_initial\_fraction]
+\]
+
+The remaining samples form an unlabeled pool.
+
+\subsubsection{Query Strategy}
+
+Every \texttt{[al\_interval]} generations, new samples are selected from the pool according to an uncertainty-based strategy:
+\begin{itemize}
+    \item Samples with predictions closest to zero are considered the most uncertain
+    \item These samples are added to the labeled training set
+\end{itemize}
+
+This process dynamically increases the training set size, as reflected in the training logs.
+
+\subsection{Ensemble Learning}
+
+To improve robustness and generalization, an ensemble model is constructed from the GA+AL population.
+
+\subsubsection{Ensemble Construction}
+
+The ensemble selects the top-performing individuals from the final population and combines their outputs using soft voting:
+\[
+\hat{y} = \mathbb{1}\left( \frac{1}{K} \sum_{i=1}^{K} f_i(x) > 0 \right)
+\]
+
+where $K$ is the ensemble size.
+
+\subsubsection{Production Choice}
+
+Only soft voting is retained for the final production model due to its stability and superior empirical performance.
+
+\subsection{Evaluation Protocol}
+
+All models are evaluated on a held-out test set that is never used during training or active learning.
+
+The following metrics are reported:
+\begin{itemize}
+    \item Accuracy
+    \item Precision
+    \item Recall
+    \item F1-score
+\end{itemize}
+
+Results are saved in:
+\begin{center}
+\texttt{[reports/results/metrics.csv]}
+\end{center}
+
+\subsection{Experimental Variants}
+
+Additional experiments are optionally executed when enabled in the configuration:
+\begin{itemize}
+    \item Alternative GA hyperparameters
+    \item Alternative Active Learning strategies
+    \item Alternative ensemble voting schemes
+\end{itemize}
+
+These experiments are isolated from the production pipeline and stored in:
+\begin{center}
+\texttt{[reports/results/experiments/]}
+\end{center}
+
+\subsection{Model Selection Strategy and Experimental Workflow}
+
+The overall objective of this project is not only to achieve strong predictive performance, but also to design a robust, reproducible, and extensible machine learning pipeline. To this end, a clear separation is enforced between \textbf{production (baseline) models} and \textbf{experimental variants}.
+
+\medskip
+
+A baseline--experiment workflow is adopted for the following reasons:
+\begin{itemize}
+    \item ensure reproducibility and stability of the retained models,
+    \item avoid overfitting conclusions based on isolated experimental gains,
+    \item enable systematic comparison under controlled modifications,
+    \item preserve a clean production pipeline while allowing research-oriented exploration.
+\end{itemize}
+
+\medskip
+
+\paragraph{Production models.}
+The production pipeline includes three retained approaches:
+\begin{itemize}
+    \item a Genetic Algorithm (GA) baseline,
+    \item a GA with Active Learning (GA+AL),
+    \item an ensemble model based on GA+AL using soft voting (GA+AL+EL).
+\end{itemize}
+
+These models are executed deterministically within the main pipeline and serve as stable reference points. Their results are saved separately and are used as benchmarks for all subsequent analyses.
+
+\medskip
+
+\paragraph{Experimental variants.}
+In parallel, a dedicated experimental workflow is implemented to explore alternative configurations without impacting the production setup. These experiments include:
+\begin{itemize}
+    \item structural constraints on GP trees (e.g., reduced maximum height),
+    \item increased population sizes,
+    \item modified Active Learning acquisition strategies,
+    \item alternative ensemble voting mechanisms (hard, weighted, diversity-based).
+\end{itemize}
+
+All experimental runs are executed only after the production models have completed, using the same preprocessed dataset. Results are stored in a separate directory and explicitly labeled as \emph{experimental} to avoid confusion with production metrics.
+
+\medskip
+
+\paragraph{Rationale.}
+At this stage, the goal is not to immediately replace production models with experimental variants, but rather to:
+\begin{itemize}
+    \item assess the sensitivity of the Genetic Programming framework to architectural and sampling choices,
+    \item evaluate performance--cost trade-offs,
+    \item identify promising directions for future optimization.
+\end{itemize}
+
+This structured approach allows the project to remain extensible and scientifically grounded, while keeping the production pipeline simple, interpretable, and reproducible.
+
+\section{Results and Analysis}
+
+\subsection{Production Model Results}
+
+This section presents the results obtained by the retained production models. These approaches constitute the stable reference baseline of the project and are executed deterministically within the main pipeline.
+
+\medskip
+
+Three production models are evaluated:
+\begin{itemize}
+    \item a Genetic Algorithm baseline (GA),
+    \item a Genetic Algorithm with Active Learning (GA+AL),
+    \item an ensemble model based on GA+AL using soft voting (GA+AL+EL).
+\end{itemize}
+
+All models are evaluated on the same held-out test set using accuracy, precision, recall, and F1-score.
+
+\medskip
+
+\paragraph{Genetic Algorithm baseline (GA).}
+The GA baseline achieves an F1-score of approximately \textbf{0.64}, with a relatively high recall and lower precision. This behavior indicates a strong sensitivity to the positive class, at the expense of an increased number of false positives. The training time is significantly higher compared to the other approaches, as the full training dataset is used throughout all generations.
+
+\medskip
+
+\paragraph{Genetic Algorithm with Active Learning (GA+AL).}
+The GA+AL approach reaches a comparable F1-score while significantly reducing the training time. By starting from a smaller labeled subset and progressively expanding it through uncertainty-based sampling, this method achieves similar predictive performance with a substantially lower computational cost.
+
+\medskip
+
+\paragraph{Ensemble learning (GA+AL+EL).}
+The ensemble model based on GA+AL and soft voting does not yield a measurable performance improvement compared to the single GA+AL model. This result suggests that, in the retained configuration, the ensemble primarily stabilizes predictions rather than increasing predictive accuracy.
+
+\medskip
+
+Overall, GA+AL is retained as a strong compromise between predictive performance and computational efficiency, while the GA baseline remains a useful reference model for comparison.
+
+\section{Results and Analysis}
+
+\subsection{Production Model Results}
+
+This section presents the results obtained by the retained production models. These approaches constitute the stable reference baseline of the project and are executed deterministically within the main pipeline.
+
+\medskip
+
+Three production models are evaluated:
+\begin{itemize}
+    \item a Genetic Algorithm baseline (GA),
+    \item a Genetic Algorithm with Active Learning (GA+AL),
+    \item an ensemble model based on GA+AL using soft voting (GA+AL+EL).
+\end{itemize}
+
+All models are evaluated on the same held-out test set using accuracy, precision, recall, and F1-score.
+
+\medskip
+
+\paragraph{Genetic Algorithm baseline (GA).}
+The GA baseline achieves an F1-score of approximately \textbf{0.64}, with a relatively high recall and lower precision. This behavior indicates a strong sensitivity to the positive class, at the expense of an increased number of false positives. The training time is significantly higher compared to the other approaches, as the full training dataset is used throughout all generations.
+
+\medskip
+
+\paragraph{Genetic Algorithm with Active Learning (GA+AL).}
+The GA+AL approach reaches a comparable F1-score while significantly reducing the training time. By starting from a smaller labeled subset and progressively expanding it through uncertainty-based sampling, this method achieves similar predictive performance with a substantially lower computational cost.
+
+\medskip
+
+\paragraph{Ensemble learning (GA+AL+EL).}
+The ensemble model based on GA+AL and soft voting does not yield a measurable performance improvement compared to the single GA+AL model. This result suggests that, in the retained configuration, the ensemble primarily stabilizes predictions rather than increasing predictive accuracy.
+
+\medskip
+
+Overall, GA+AL is retained as a strong compromise between predictive performance and computational efficiency, while the GA baseline remains a useful reference model for comparison.
+
+\subsection{Computational Cost and Efficiency}
+
+In addition to predictive performance, computational cost is a critical factor when evaluating machine learning pipelines, especially for iterative methods such as Genetic Programming. This section analyzes training time, data usage, and scalability across the different approaches.
+
+\medskip
+
+\subsubsection{Baseline Genetic Algorithm}
+
+The baseline Genetic Algorithm is trained on the full labeled dataset, consisting of approximately 650\,000 samples. As a result, it exhibits the highest computational cost among all approaches, with a total training time of approximately 400 seconds.
+
+Despite this cost, the baseline GA serves as a strong reference point, providing a stable optimization process and consistent convergence behavior across generations.
+
+\medskip
+
+\subsubsection{Genetic Algorithm with Active Learning}
+
+The GA+AL approach dramatically reduces computational cost by limiting the initial labeled dataset to a fraction of the full training set. In this configuration, only 10\% of the data is used initially, corresponding to approximately 65\,000 samples.
+
+This reduction leads to a training time of roughly 50 seconds, representing an order-of-magnitude speedup compared to the baseline GA. Importantly, this efficiency gain is achieved without a significant loss in predictive performance, demonstrating the effectiveness of active learning in prioritizing informative samples.
+
+\medskip
+
+\subsubsection{Impact of Experimental Variants}
+
+Experimental configurations further highlight the trade-offs between performance and cost:
+\begin{itemize}
+    \item Increasing the population size substantially increases training time, nearly doubling the computational cost while providing limited performance gains.
+    \item Restricting tree depth improves generalization but does not significantly reduce training time, as the full dataset is still evaluated during evolution.
+    \item Modifying active learning parameters has only a marginal impact on computational cost, confirming the robustness of the GA+AL baseline configuration.
+\end{itemize}
+
+\medskip
+
+\subsubsection{Ensemble Learning Overhead}
+
+Ensemble learning introduces minimal additional computational cost, as it operates exclusively at inference time. Since ensemble predictions reuse already trained individuals, the overhead is limited to multiple forward evaluations and aggregation steps.
+
+Given this low cost, ensemble learning can be considered an efficient post-processing technique that improves prediction stability without affecting training complexity.
+
+\medskip
+
+\subsubsection{Summary}
+
+Overall, the results demonstrate that active learning is the primary driver of computational efficiency in the proposed pipeline. The retained production architecture achieves a favorable balance between training time and predictive performance, while experimental configurations provide valuable insights into potential future optimizations.
+
+\section{Limitations and Future Work}
+
+Despite the encouraging results obtained with the proposed pipeline, several limitations remain and open the door to meaningful future work.
+
+\medskip
+
+\subsection{Hyperparameter Optimization}
+
+One important limitation of the current approach lies in the manual selection of hyperparameters. Parameters such as population size, tree depth, mutation and crossover rates, as well as active learning settings, were chosen empirically and evaluated through a limited number of experimental variants.
+
+Future work could involve a more systematic hyperparameter optimization strategy. In particular, defining structured dictionaries of model configurations and associated hyperparameters would allow automated and exhaustive experimentation. Such an approach would enable large-scale comparisons between different genetic programming configurations, leading to a more principled selection of optimal models.
+
+\medskip
+
+\subsection{Scalability and Computational Cost}
+
+Although active learning significantly reduces training time, genetic programming remains computationally expensive, especially when operating on large datasets. Evaluating entire populations across multiple generations imposes a substantial computational burden.
+
+Several strategies could be explored to further mitigate this cost. These include parallelizing fitness evaluations, reducing population sizes dynamically during evolution, or introducing early stopping mechanisms based on convergence criteria. Additionally, surrogate models could be used to approximate fitness evaluations and limit the number of full evaluations required.
+
+\medskip
+
+\subsection{Search Space and Model Diversity}
+
+The expressiveness of genetic programming comes at the cost of a large and complex search space. While ensemble learning partially addresses this issue by leveraging population diversity, the exploration process itself remains challenging.
+
+Future improvements could include adaptive operator probabilities, multi-objective optimization that jointly considers performance and model complexity, or the integration of domain-specific constraints to guide the evolutionary search more effectively.
+
+\medskip
+
+\subsection{Towards a More Automated Experimental Framework}
+
+Finally, the current experimental workflow relies on a predefined set of model variants. Extending this framework into a fully automated experimentation pipeline would allow continuous evaluation of new configurations as computational resources permit. Such a system could progressively refine both model performance and efficiency over time.
+
+\medskip
+
+In summary, while the proposed architecture provides a solid and extensible baseline, future work could significantly enhance its robustness, scalability, and optimality through systematic hyperparameter exploration and improved computational efficiency.
+
+\section{Conclusion}
+
+In this project, we proposed and evaluated a complete machine learning pipeline based on genetic programming for a binary classification task on a large-scale dataset. The approach combined exploratory data analysis, robust preprocessing, evolutionary learning, active learning, and ensemble methods within a unified and reproducible framework.
+
+The experimental results demonstrate that genetic programming is capable of learning meaningful decision functions despite the complexity of the data. Active learning significantly reduced training time while preserving comparable predictive performance, highlighting its relevance in large-scale settings. Ensemble learning, although not improving performance in this specific configuration, provided additional robustness and confirmed the stability of the selected models.
+
+Beyond raw performance metrics, this work emphasized the importance of a structured experimental workflow. The clear separation between production models and experimental variants enabled systematic comparisons and informed model selection decisions, balancing predictive quality and computational cost.
+
+Overall, the proposed architecture serves as a solid baseline for evolutionary learning on large datasets. While several avenues for improvement remain, particularly in hyperparameter optimization and computational efficiency, the current framework provides a strong foundation for further research and experimentation.
+
+
+\end{document}
