@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
-
+from typing import Any, Callable, Tuple
 import operator
 import random
-from functools import partial
 import time
+import copy
+from functools import partial
 
 import numpy as np
 from deap import base, creator, gp, tools
 from sklearn.metrics import f1_score
 
+
+# ============================================================
+# Result container
+# ============================================================
 
 @dataclass
 class GAResult:
@@ -21,13 +25,16 @@ class GAResult:
     train_time_sec: float
 
 
+# ============================================================
+# Protected operators
+# ============================================================
+
 def _protected_div(left, right):
-    left_arr = np.asarray(left)
-    right_arr = np.asarray(right)
-    out_shape = np.broadcast(left_arr, right_arr).shape
-    safe = np.ones(out_shape, dtype=float)
-    np.divide(left_arr, right_arr, out=safe, where=np.abs(right_arr) > 1e-6)
-    return safe
+    left = np.asarray(left)
+    right = np.asarray(right)
+    out = np.ones(np.broadcast(left, right).shape, dtype=float)
+    np.divide(left, right, out=out, where=np.abs(right) > 1e-6)
+    return out
 
 
 def _ensure_vector(outputs, n_rows: int) -> np.ndarray:
@@ -37,7 +44,22 @@ def _ensure_vector(outputs, n_rows: int) -> np.ndarray:
     return outputs
 
 
-def build_toolbox(n_features: int, seed: int, max_tree_height: int):
+def _sanitize(outputs: np.ndarray) -> np.ndarray:
+    return np.nan_to_num(outputs, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+# ============================================================
+# Toolbox builder
+# ============================================================
+
+def build_toolbox(
+    n_features: int,
+    seed: int,
+    max_tree_height: int,
+):
+    random.seed(seed)
+    np.random.seed(seed)
+
     pset = gp.PrimitiveSet("MAIN", n_features)
     pset.addPrimitive(operator.add, 2)
     pset.addPrimitive(operator.sub, 2)
@@ -46,16 +68,22 @@ def build_toolbox(n_features: int, seed: int, max_tree_height: int):
     pset.addPrimitive(operator.neg, 1)
     pset.addEphemeralConstant("rand", partial(random.uniform, -1, 1))
 
+    # DEAP creators (safe if re-imported)
     if not hasattr(creator, "FitnessMax"):
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))
     if not hasattr(creator, "Individual"):
         creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
     toolbox = base.Toolbox()
+
     toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=3)
     toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
     toolbox.register("compile", gp.compile, pset=pset)
+
+    # IMPORTANT: ensure clone exists (robust across envs)
+    toolbox.register("clone", copy.deepcopy)
 
     toolbox.register("select", tools.selTournament, tournsize=5)
     toolbox.register("mate", gp.cxOnePoint)
@@ -71,24 +99,45 @@ def build_toolbox(n_features: int, seed: int, max_tree_height: int):
         gp.staticLimit(key=operator.attrgetter("height"), max_value=max_tree_height),
     )
 
-    random.seed(seed)
-    np.random.seed(seed)
     return toolbox
 
 
+# ============================================================
+# Evaluation
+# ============================================================
+
 def _evaluate_individual(individual, toolbox, data):
     func = toolbox.compile(expr=individual)
+
     outputs = func(*data["x"].T)
     outputs = _ensure_vector(outputs, data["x"].shape[0])
-    outputs = np.nan_to_num(outputs, nan=0.0, posinf=0.0, neginf=0.0)
+    outputs = _sanitize(outputs)
+
     preds = (outputs > 0).astype(int)
     score = f1_score(data["y"], preds, zero_division=0)
     return (score,)
 
 
-def _active_sample(pool_x, pool_y, n_samples, strategy, scorer, seed):
-    if len(pool_x) == 0:
-        return pool_x, pool_y, np.empty((0, pool_x.shape[1])), np.empty((0,), dtype=int)
+# ============================================================
+# Active Learning sampler
+# ============================================================
+
+def _active_sample(
+    pool_x: np.ndarray,
+    pool_y: np.ndarray,
+    n_samples: int,
+    strategy: str,
+    scorer: Callable[[np.ndarray], np.ndarray],
+    seed: int,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Returns:
+    - remaining pool_x, remaining pool_y
+    - new_x, new_y (selected samples)
+    """
+    if pool_x is None or pool_y is None or len(pool_x) == 0:
+        # Keep shapes consistent
+        return pool_x, pool_y, np.empty((0, 0)), np.empty((0,), dtype=int)
 
     rng = np.random.default_rng(seed)
     n_samples = min(n_samples, len(pool_x))
@@ -96,20 +145,28 @@ def _active_sample(pool_x, pool_y, n_samples, strategy, scorer, seed):
     if strategy == "random":
         idx = rng.choice(len(pool_x), n_samples, replace=False)
     else:
+        # Uncertainty: closest to 0 in absolute score
         scores = scorer(pool_x)
-        scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
+        scores = _sanitize(np.asarray(scores))
         idx = np.argsort(np.abs(scores))[:n_samples]
 
     mask = np.ones(len(pool_x), dtype=bool)
     mask[idx] = False
+
     new_x = pool_x[idx]
     new_y = pool_y[idx]
+
     return pool_x[mask], pool_y[mask], new_x, new_y
 
+
+# ============================================================
+# Main GA runner
+# ============================================================
 
 def run_ga(
     x_train: np.ndarray,
     y_train: np.ndarray,
+    *,
     population_size: int,
     generations: int,
     crossover_prob: float,
@@ -124,21 +181,29 @@ def run_ga(
     al_strategy: str = "uncertainty",
 ) -> GAResult:
     toolbox = build_toolbox(x_train.shape[1], seed, max_tree_height)
+
+    # Override tournament size dynamically
     toolbox.unregister("select")
     toolbox.register("select", tools.selTournament, tournsize=tournament_size)
 
-    data = {"x": x_train, "y": y_train}
-    pool_x = None
-    pool_y = None
     rng = np.random.default_rng(seed)
 
+    # --------------------------------------------------------
+    # Data split for Active Learning
+    # --------------------------------------------------------
+    data = {"x": x_train, "y": y_train}
+    pool_x, pool_y = None, None
+
     if active_learning:
-        initial_size = max(1, int(len(x_train) * al_initial_fraction))
+        init_size = max(1, int(len(x_train) * al_initial_fraction))
         indices = rng.permutation(len(x_train))
-        labeled_idx = indices[:initial_size]
-        pool_idx = indices[initial_size:]
+
+        labeled_idx = indices[:init_size]
+        pool_idx = indices[init_size:]
+
         data["x"] = x_train[labeled_idx]
         data["y"] = y_train[labeled_idx]
+
         pool_x = x_train[pool_idx]
         pool_y = y_train[pool_idx]
 
@@ -146,32 +211,36 @@ def run_ga(
 
     population = toolbox.population(n=population_size)
 
-    print(f"[GA] Initial evaluation of {len(population)} individuals...")
     start = time.time()
 
+    # Initial evaluation
     invalid = [ind for ind in population if not ind.fitness.valid]
     for ind, fit in zip(invalid, map(toolbox.evaluate, invalid)):
         ind.fitness.values = fit
 
-    log = []
+    log: list[dict] = []
 
+    # --------------------------------------------------------
+    # Evolution loop
+    # --------------------------------------------------------
     for gen in range(1, generations + 1):
-        print(f"[GA] Generation {gen}/{generations} | Train size = {len(data['x'])}")
-
         offspring = toolbox.select(population, len(population))
         offspring = list(map(toolbox.clone, offspring))
 
+        # Crossover
         for c1, c2 in zip(offspring[::2], offspring[1::2]):
             if rng.random() < crossover_prob:
                 toolbox.mate(c1, c2)
                 del c1.fitness.values
                 del c2.fitness.values
 
+        # Mutation
         for mutant in offspring:
             if rng.random() < mutation_prob:
                 toolbox.mutate(mutant)
                 del mutant.fitness.values
 
+        # Evaluate invalid individuals
         invalid = [ind for ind in offspring if not ind.fitness.valid]
         for ind, fit in zip(invalid, map(toolbox.evaluate, invalid)):
             ind.fitness.values = fit
@@ -180,14 +249,26 @@ def run_ga(
 
         best = tools.selBest(population, 1)[0]
         fitnesses = [ind.fitness.values[0] for ind in population]
-        mean_fitness = float(np.mean(fitnesses))
 
-        if active_learning and pool_x is not None and len(pool_x) > 0 and gen % al_interval == 0:
-            scorer = lambda px: toolbox.compile(expr=best)(*px.T)
+        # Active Learning step
+        if active_learning and pool_x is not None and pool_y is not None and gen % al_interval == 0:
+            best_func = toolbox.compile(expr=best)
+
+            def scorer(px: np.ndarray) -> np.ndarray:
+                out = best_func(*px.T)
+                out = _ensure_vector(out, px.shape[0])
+                return _sanitize(out)
+
             pool_x, pool_y, new_x, new_y = _active_sample(
-                pool_x, pool_y, al_samples_per_round, al_strategy, scorer, seed + gen
+                pool_x=pool_x,
+                pool_y=pool_y,
+                n_samples=al_samples_per_round,
+                strategy=al_strategy,
+                scorer=scorer,
+                seed=seed + gen,
             )
-            if len(new_x) > 0:
+
+            if new_x.size > 0:
                 data["x"] = np.vstack([data["x"], new_x])
                 data["y"] = np.concatenate([data["y"], new_y])
 
@@ -195,15 +276,13 @@ def run_ga(
             {
                 "generation": gen,
                 "best_f1": float(best.fitness.values[0]),
-                "mean_f1": mean_fitness,
+                "mean_f1": float(np.mean(fitnesses)),
                 "train_size": int(len(data["x"])),
             }
         )
 
     train_time = time.time() - start
     best = tools.selBest(population, 1)[0]
-
-    print(f"[GA] Finished in {train_time:.1f} seconds")
 
     return GAResult(
         population=population,

@@ -1,112 +1,148 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import List, Dict, Optional
 
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
-# ---------------------------------------------------------------------
+# ============================================================
 # Directory utilities
-# ---------------------------------------------------------------------
+# ============================================================
 
 def ensure_reports_dir(path: Path) -> None:
-    """Create reports directory if it does not exist."""
+    """Create root reports directory."""
     path.mkdir(parents=True, exist_ok=True)
 
 
-# ---------------------------------------------------------------------
-# Save metrics and logs
-# ---------------------------------------------------------------------
+def ensure_subdirs(reports_dir: Path) -> None:
+    """
+    Create standard subdirectories used by the project.
+    """
+    for sub in [
+        "data",
+        "training",
+        "results",
+        "results/experiments",
+    ]:
+        (reports_dir / sub).mkdir(parents=True, exist_ok=True)
 
-def save_metrics(metrics_rows: list[dict], reports_dir: Path) -> None:
+
+# ============================================================
+# Save utilities
+# ============================================================
+
+def save_metrics(
+    metrics_rows: List[Dict],
+    out_dir: Path,
+    filename_prefix: Optional[str] = None,
+) -> None:
     """
-    Save final performance metrics (GA / GA+AL / GA+AL+EL)
-    in both CSV and JSON formats.
+    Save metrics to CSV + JSON.
+
+    - PROD: filename_prefix=None
+      -> metrics.csv / metrics.json
+    - EXPERIMENTS: filename_prefix="experiments"
+      -> experiments_metrics.csv / experiments_metrics.json
     """
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     df = pd.DataFrame(metrics_rows)
-    df.to_csv(reports_dir / "metrics.csv", index=False)
-    df.to_json(reports_dir / "metrics.json", orient="records", indent=2)
+
+    if filename_prefix is None:
+        csv_name = "metrics.csv"
+        json_name = "metrics.json"
+    else:
+        csv_name = f"{filename_prefix}_metrics.csv"
+        json_name = f"{filename_prefix}_metrics.json"
+
+    df.to_csv(out_dir / csv_name, index=False)
+    df.to_json(
+        out_dir / json_name,
+        orient="records",
+        indent=2,
+    )
 
 
-def save_log(log_rows: list[dict], reports_dir: Path, filename: str) -> None:
+def save_log(
+    log_rows: List[Dict],
+    out_dir: Path,
+    filename: str,
+) -> None:
     """
-    Save GA training history (per-generation logs) to CSV.
+    Save logs (GA convergence or ensemble logs) to CSV.
     """
-    df = pd.DataFrame(log_rows)
-    df.to_csv(reports_dir / filename, index=False)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(log_rows).to_csv(out_dir / filename, index=False)
 
 
-# ---------------------------------------------------------------------
-# Global metrics plots
-# ---------------------------------------------------------------------
+# ============================================================
+# Metrics plots
+# ============================================================
 
-def plot_metrics(metrics_rows: list[dict], reports_dir: Path) -> None:
+def plot_metrics(
+    metrics_rows: List[Dict],
+    out_dir: Path,
+    filename: Optional[str] = None,
+) -> None:
     """
-    Plot final performance metrics and training time comparison
-    between GA, GA+AL and GA+AL+EL.
+    Plot accuracy / precision / recall / f1 for all approaches.
+
+    - PROD: filename=None -> metrics_plot.png
+    - EXPERIMENTS: filename="experiments_metrics_plot.png"
     """
     df = pd.DataFrame(metrics_rows)
     if df.empty:
         return
 
-    # --- Performance metrics ---
+    if filename is None:
+        filename = "metrics_plot.png"
+
     metrics = ["accuracy", "precision", "recall", "f1"]
-    fig, ax = plt.subplots(figsize=(10, 6))
-    x = range(len(df["approach"]))
+    x = range(len(df))
     width = 0.2
 
-    for i, metric in enumerate(metrics):
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for i, m in enumerate(metrics):
         ax.bar(
             [p + (i - 1.5) * width for p in x],
-            df[metric],
+            df[m],
             width=width,
-            label=metric,
+            label=m,
         )
 
     ax.set_xticks(list(x))
-    ax.set_xticklabels(df["approach"])
+    ax.set_xticklabels(df["approach"], rotation=20, ha="right")
     ax.set_ylim(0, 1)
     ax.set_ylabel("Score")
     ax.set_title("Performance comparison")
     ax.legend()
 
     fig.tight_layout()
-    fig.savefig(reports_dir / "metrics_plot.png")
-    plt.close(fig)
-
-    # --- Training time ---
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.bar(df["approach"], df["train_time_sec"])
-    ax.set_ylabel("Seconds")
-    ax.set_title("Training time comparison")
-
-    fig.tight_layout()
-    fig.savefig(reports_dir / "training_time.png")
+    fig.savefig(out_dir / filename)
     plt.close(fig)
 
 
-# ---------------------------------------------------------------------
-# GA convergence & Active Learning plots
-# ---------------------------------------------------------------------
+# ============================================================
+# GA convergence plots
+# ============================================================
 
-def plot_ga_history(log_csv: Path, reports_dir: Path, prefix: str) -> None:
+def plot_ga_history(
+    log_csv: Path,
+    out_dir: Path,
+    prefix: str,
+) -> None:
     """
-    Plot GA convergence (best and mean fitness over generations)
-    and training set size evolution.
-
-    Parameters
-    ----------
-    log_csv : Path
-        CSV file containing GA logs (generation, best_f1, mean_f1, train_size).
-    reports_dir : Path
-        Directory where plots will be saved.
-    prefix : str
-        Prefix used to identify the experiment (e.g., "ga", "ga_al").
+    Plot GA convergence:
+    - best_f1
+    - mean_f1
+    - training size evolution
     """
     df = pd.read_csv(log_csv)
 
-    # --- Convergence plot ---
+    # ---- F1 convergence ----
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(df["generation"], df["best_f1"], label="Best F1")
     ax.plot(df["generation"], df["mean_f1"], label="Mean F1")
@@ -116,16 +152,16 @@ def plot_ga_history(log_csv: Path, reports_dir: Path, prefix: str) -> None:
     ax.legend()
 
     fig.tight_layout()
-    fig.savefig(reports_dir / f"{prefix}_ga_convergence.png")
+    fig.savefig(out_dir / f"{prefix}_ga_convergence.png")
     plt.close(fig)
 
-    # --- Training set size evolution ---
+    # ---- Training size ----
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(df["generation"], df["train_size"])
     ax.set_xlabel("Generation")
     ax.set_ylabel("Training set size")
-    ax.set_title(f"Training set growth ({prefix})")
+    ax.set_title(f"Training set size evolution ({prefix})")
 
     fig.tight_layout()
-    fig.savefig(reports_dir / f"{prefix}_training_size.png")
+    fig.savefig(out_dir / f"{prefix}_training_size.png")
     plt.close(fig)
