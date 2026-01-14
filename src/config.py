@@ -10,7 +10,7 @@ class Config:
 
     # Global switches
     run_eda: bool = True
-    run_experiments: bool = False  # to run experiments after prod
+    run_experiments: bool = False  # to run experiments after main pipeline
 
     # Reproducibility
     random_seed: int = 42
