@@ -1,4 +1,0 @@
-il faudrait que les logs affiches le nom du modele qui est entrainé
-au moment ou c'est un GA + AL que ça affiche dans les crochets du log de l'entrainement [GA+AL] au lieu de [GA]
-il faut que ça évalue bien sur la dernière génération pour GA+AL+EL et que ça soit explicité dans le log.
-il faudrait les logs liés aux training, c'est à dire l'évolution des quatre métriques pour les training des ga et ga_al - en gros utiliser la fonction plot_ga_history qui est en paramètre mais pas utilisé
