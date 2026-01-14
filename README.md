@@ -99,4 +99,4 @@ You can edit settings in `src/config.py`, including:
 - Ensemble size
 - Activation true/false of the run of the EDA : run_eda
 - Activation true/false of the run of the experimental models after baseline model : run_experiments
-  => Actual state : run_eda = true, run_experiments = false
+  Actual state : run_eda = true, run_experiments = false
