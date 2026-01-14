@@ -4,12 +4,19 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Config:
+    # Paths
     data_path: Path = Path("data/atlas-higgs-challenge-2014-v2.csv.gz")
     reports_dir: Path = Path("reports")
+
+    # Global switches
+    run_eda: bool = True
+    run_experiments: bool = False  # to run experiments after main pipeline
+
+    # Reproducibility
     random_seed: int = 42
     test_size: float = 0.2
 
-    # Genetic programming settings
+    # Genetic Algorithm 
     population_size: int = 200
     generations: int = 30
     crossover_prob: float = 0.5
@@ -17,12 +24,12 @@ class Config:
     tournament_size: int = 5
     max_tree_height: int = 6
 
-    # Active learning settings
+    # Active Learning
     al_enabled: bool = True
     al_initial_fraction: float = 0.1
     al_samples_per_round: int = 5000
     al_interval: int = 2
-    al_strategy: str = "uncertainty"  # uncertainty or random
+    al_strategy: str = "uncertainty"  # can be "random"
 
-    # Ensemble settings
+    # Ensemble
     ensemble_size: int = 15

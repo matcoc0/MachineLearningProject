@@ -1,3 +1,11 @@
 Instructions.pdf
 .venv
 __pycache__/
+venv/
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
