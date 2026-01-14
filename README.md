@@ -1,4 +1,4 @@
-# MachineLearningProject
+# Machine Learning Project - Combining Evolutionary Learning, Active Learning and Ensemble Learning
 Authored by Mathieu Cowan and Hugo Bonnell
 
 Console-based project for the Higgs Boson detection assignment using:
