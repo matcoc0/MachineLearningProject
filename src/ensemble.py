@@ -5,29 +5,45 @@ from deap import tools
 
 
 def _safe_outputs(outputs: np.ndarray) -> np.ndarray:
+    """
+    This function ensures numerical stability by replacing NaN and
+    infinite values with zeros.
+    """
     outputs = np.asarray(outputs)
     outputs = np.nan_to_num(outputs, nan=0.0, posinf=0.0, neginf=0.0)
     return outputs
 
 
 def _compile_and_predict(individual, toolbox, x: np.ndarray) -> np.ndarray:
+    """
+    Compile a GP individual and compute its raw prediction scores.
+    """
     func = toolbox.compile(expr=individual)
     outputs = func(*x.T)
     return _safe_outputs(outputs)
 
 
 def _soft_voting(raw_scores: list[np.ndarray]) -> np.ndarray:
+    """
+    Perform soft voting aggregation
+    """
     scores = np.mean(np.vstack(raw_scores), axis=0)
     return (scores > 0).astype(int)
 
 
 def _hard_voting(raw_scores: list[np.ndarray]) -> np.ndarray:
+    """
+    Perform hard voting aggregation (majority vote)
+    """
     votes = [(s > 0).astype(int) for s in raw_scores]
     votes = np.vstack(votes)
     return (np.mean(votes, axis=0) >= 0.5).astype(int)
 
 
 def _weighted_voting(raw_scores: list[np.ndarray], weights: np.ndarray) -> np.ndarray:
+    """
+    Perform weighted (fitness) soft voting
+    """
     weights = np.asarray(weights, dtype=float)
     weights = np.nan_to_num(weights, nan=0.0, posinf=0.0, neginf=0.0)
     s = float(np.sum(weights))
@@ -39,6 +55,9 @@ def _weighted_voting(raw_scores: list[np.ndarray], weights: np.ndarray) -> np.nd
 
 
 def _diversity_subset(population, max_k: int):
+    """
+    Select a diverse subset of individuals based on tree height.
+    """
     selected = []
     seen_heights = set()
 
@@ -69,6 +88,9 @@ def ensemble_predict(
     ensemble_size: int,
     voting: str = "soft",
 ) -> np.ndarray:
+    """
+    Generate ensemble predictions from a GA population.
+    """
     print("[GA+AL+EL] Using final GA population for ensemble inference")
     if len(population) == 0:
         raise ValueError("Population is empty.")

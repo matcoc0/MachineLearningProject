@@ -158,7 +158,7 @@ def _run_ga_al_experiments_only_variants(
 
     print("\n[EXPERIMENTS] Running GA+AL variants...")
 
-    # Variant 1: aggressive AL
+    # Variant 1: aggressive AL with higher samples per round
     m, _ = _run_ga_variant_and_eval(
         name="GA+AL variant - aggressive sampling (x2)",
         dataset=dataset,
@@ -168,7 +168,7 @@ def _run_ga_al_experiments_only_variants(
     )
     results.append(m)
 
-    # Variant 2: conservative AL
+    # Variant 2: conservative AL with higher al_interval
     m, _ = _run_ga_variant_and_eval(
         name="GA+AL variant - conservative interval (x2)",
         dataset=dataset,
@@ -230,10 +230,9 @@ def run_experiments(
     toolbox_al,
 ) -> None:
     """
-    Run additional experiments AFTER the production pipeline.
-
-    Results are saved in:
-    reports/results/experiments/
+    full experimental pipeline of the project. This includes the loading of the data, the EDA, 
+    the preprocessing and split, the training of the models and the saving/plot of results.
+    To run it after the main pipeline, activate run_experiments in config.py
     """
     out_dir = config.reports_dir / "results" / "experiments"
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -16,10 +16,16 @@ from sklearn.decomposition import PCA
 # Utilities
 
 def _ensure_dir(p: Path) -> None:
+    """
+    Ensure that a directory exists
+    """
     p.mkdir(parents=True, exist_ok=True)
 
 
 def _safe_float(x) -> float:
+    """
+    Safe convert to float
+    """
     try:
         return float(x)
     except Exception:
@@ -27,6 +33,9 @@ def _safe_float(x) -> float:
 
 
 def _iqr_outlier_rate(x: np.ndarray) -> float:
+    """
+    Compute the proportion of outliers using the IQR rule
+    """
     x = x[~np.isnan(x)]
     if x.size == 0:
         return 0.0
@@ -39,6 +48,9 @@ def _iqr_outlier_rate(x: np.ndarray) -> float:
 
 
 def _ks_statistic(a: np.ndarray, b: np.ndarray) -> float:
+    """
+    Compute the K-S Statistic between two samples
+    """
     a, b = a[~np.isnan(a)], b[~np.isnan(b)]
     if a.size == 0 or b.size == 0:
         return float("nan")
@@ -56,6 +68,10 @@ def run_eda(
     seed: int = 42,
     test_size: float = 0.2,
 ) -> None:
+    '''
+    Full EDA Pipeline of our project. Includes correlation matrix, missing values, class distributions...
+    To run it before the main pipeline of the project, make sure that run_eda=true in config.py. Otherwise, make deactivate it.
+    '''
     t0 = time.perf_counter()
 
     # Directories

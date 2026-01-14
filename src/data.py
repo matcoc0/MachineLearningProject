@@ -31,13 +31,6 @@ def load_and_preprocess(
     """
     Load the Higgs dataset, apply preprocessing, and return
     a structured DatasetSplit object.
-
-    Preprocessing steps:
-    - drop non-feature columns
-    - label encoding
-    - missing value handling (-999 -> NaN -> mean imputation)
-    - standardization
-    - stratified train/test split
     """
     t0 = time.perf_counter()
 

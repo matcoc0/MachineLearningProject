@@ -13,9 +13,11 @@ from sklearn.metrics import f1_score
 
 
 # Result container
-
 @dataclass
 class GAResult:
+    """
+    Contains GA training results
+    """
     population: list
     best_individual: Any
     log: list[dict]
@@ -23,8 +25,10 @@ class GAResult:
 
 
 # Protected operators
-
 def _protected_div(left, right):
+    """
+    Protected division operator to avoid numerical instabilities
+    """
     left = np.asarray(left)
     right = np.asarray(right)
     out = np.ones(np.broadcast(left, right).shape, dtype=float)
@@ -33,6 +37,9 @@ def _protected_div(left, right):
 
 
 def _ensure_vector(outputs, n_rows: int) -> np.ndarray:
+    """
+    Ensure that GP outputs are vectorized
+    """
     outputs = np.asarray(outputs)
     if outputs.ndim == 0:
         outputs = np.full(n_rows, float(outputs))
@@ -44,8 +51,10 @@ def _sanitize(outputs: np.ndarray) -> np.ndarray:
 
 
 # Toolbox builder (DEAP GP)
-
 def build_toolbox(n_features: int, seed: int, max_tree_height: int):
+    """
+    Build and configure the DEAP toolbox for Genetic Programming.
+    """
     random.seed(seed)
     np.random.seed(seed)
 
@@ -90,8 +99,11 @@ def build_toolbox(n_features: int, seed: int, max_tree_height: int):
 
 
 # Fitness + scoring helpers
-
 def _evaluate_individual(individual, toolbox, data):
+    """
+    Evaluate a GP individual using the F1-score.
+    """
+    
     func = toolbox.compile(expr=individual)
     outputs = func(*data["x"].T)
     outputs = _ensure_vector(outputs, data["x"].shape[0])
@@ -102,6 +114,10 @@ def _evaluate_individual(individual, toolbox, data):
 
 
 def _raw_scores(individual, toolbox, x: np.ndarray) -> np.ndarray:
+    """
+    Compute raw (continuous) GP outputs for a given dataset.
+    """
+    
     func = toolbox.compile(expr=individual)
     outputs = func(*x.T)
     outputs = _ensure_vector(outputs, x.shape[0])
@@ -116,7 +132,9 @@ def _query_indices_uncertainty(
     pool_x: np.ndarray,
     n_query: int,
 ) -> np.ndarray:
-    # "Closest to zero" => highest uncertainty
+    """
+    Select samples with highest uncertainty for Active Learning.
+    """
     scores = _raw_scores(individual, toolbox, pool_x)
     uncertainty = np.abs(scores)
     idx = np.argsort(uncertainty)[:n_query]
@@ -132,6 +150,9 @@ def _active_learning_step(
     pool_y: np.ndarray,
     n_query: int,
 ) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Perform one Active Learning query step.
+    """
     if len(pool_x) == 0:
         return pool_x, pool_y
 
@@ -150,7 +171,6 @@ def _active_learning_step(
 
 
 # Main GA runner
-
 def run_ga(
     x_train: np.ndarray,
     y_train: np.ndarray,
@@ -167,9 +187,13 @@ def run_ga(
     al_samples_per_round: int = 1000,
     al_interval: int = 2,
     al_strategy: str = "uncertainty",
-    model_name: Optional[str] = None,  # <<< NEW (for experiments logging)
+    model_name: Optional[str] = None, 
 ) -> GAResult:
-
+    """
+    Run a Genetic Programming-based Genetic Algorithm, either for:
+    - Standard GA (fully supervised)
+    - GA with Active Learning (GA+AL)
+    """
     toolbox = build_toolbox(x_train.shape[1], seed, max_tree_height)
 
     # Use requested tournament size

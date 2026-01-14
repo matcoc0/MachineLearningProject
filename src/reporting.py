@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 
 
 # Directory utilities
-
 def ensure_reports_dir(path: Path) -> None:
-    """Create root reports directory."""
+    """
+    Create root reports directory.
+    """
     path.mkdir(parents=True, exist_ok=True)
 
 
@@ -27,20 +28,14 @@ def ensure_subdirs(reports_dir: Path) -> None:
         (reports_dir / sub).mkdir(parents=True, exist_ok=True)
 
 
-# Save utilities
-
+# Saving utilities
 def save_metrics(
     metrics_rows: List[Dict],
     out_dir: Path,
     filename_prefix: Optional[str] = None,
 ) -> None:
     """
-    Save metrics to CSV + JSON.
-
-    - PROD: filename_prefix=None
-      -> metrics.csv / metrics.json
-    - EXPERIMENTS: filename_prefix="experiments"
-      -> experiments_metrics.csv / experiments_metrics.json
+    Save metrics into CSV + JSON permits saving of results, and plotting and analysis.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,7 +69,6 @@ def save_log(
 
 
 # Metrics plots
-
 def plot_metrics(
     metrics_rows: List[Dict],
     out_dir: Path,
@@ -82,9 +76,6 @@ def plot_metrics(
 ) -> None:
     """
     Plot accuracy / precision / recall / f1 for all approaches.
-
-    - PROD: filename=None -> metrics_plot.png
-    - EXPERIMENTS: filename="experiments_metrics_plot.png"
     """
     df = pd.DataFrame(metrics_rows)
     if df.empty:
@@ -120,21 +111,17 @@ def plot_metrics(
 
 
 # GA convergence plots
-
 def plot_ga_history(
     log_csv: Path,
     out_dir: Path,
     prefix: str,
 ) -> None:
     """
-    Plot GA convergence:
-    - best_f1
-    - mean_f1
-    - training size evolution
+    Plot GA convergence: with the best F1 and the mean F1
     """
     df = pd.read_csv(log_csv)
 
-    # ---- F1 convergence ----
+    # F1 convergence
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(df["generation"], df["best_f1"], label="Best F1")
     ax.plot(df["generation"], df["mean_f1"], label="Mean F1")
@@ -147,7 +134,7 @@ def plot_ga_history(
     fig.savefig(out_dir / f"{prefix}_ga_convergence.png")
     plt.close(fig)
 
-    # ---- Training size ----
+    # Training size
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(df["generation"], df["train_size"])
     ax.set_xlabel("Generation")
@@ -161,9 +148,7 @@ def plot_ga_history(
 # training time plot
 def plot_training_time_comparison(results, save_path):
     """
-    results: list of dicts with keys:
-        - approach
-        - train_time_sec
+    returns a plot of the different models's training time
     """
 
     labels = [r["approach"] for r in results]
