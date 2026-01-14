@@ -13,7 +13,6 @@ from sklearn.preprocessing import StandardScaler
 
 
 # Dataset container
-
 @dataclass
 class DatasetSplit:
     x_train: np.ndarray
@@ -24,7 +23,6 @@ class DatasetSplit:
 
 
 # Loader + preprocessing
-
 def load_and_preprocess(
     data_path: str,
     test_size: float,
@@ -46,9 +44,7 @@ def load_and_preprocess(
     print("[DATA] Loading dataset...")
     df = pd.read_csv(data_path, compression="gzip")
 
-    # --------------------------------------------------------
     # Drop non-feature columns
-    # --------------------------------------------------------
     drop_cols = ["EventId", "Weight", "KaggleSet", "KaggleWeight"]
     df = df.drop(columns=[c for c in drop_cols if c in df.columns])
 

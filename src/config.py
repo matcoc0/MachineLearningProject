@@ -9,8 +9,8 @@ class Config:
     reports_dir: Path = Path("reports")
 
     # Global switches
-    run_eda: bool = False
-    run_experiments: bool = True  # to run experiments after prod
+    run_eda: bool = True
+    run_experiments: bool = False  # to run experiments after prod
 
     # Reproducibility
     random_seed: int = 42

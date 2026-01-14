@@ -5,7 +5,7 @@
     "recall":0.7889719559,
     "f1":0.643698791,
     "approach":"GA",
-    "train_time_sec":365.3247845173
+    "train_time_sec":296.0451562405
   },
   {
     "accuracy":0.694698377,
@@ -13,7 +13,7 @@
     "recall":0.7567606238,
     "f1":0.6287726807,
     "approach":"GA+AL",
-    "train_time_sec":56.2541918755
+    "train_time_sec":39.8107244968
   },
   {
     "accuracy":0.694698377,
@@ -21,6 +21,6 @@
     "recall":0.7567606238,
     "f1":0.6287726807,
     "approach":"GA+AL+EL (soft)",
-    "train_time_sec":56.2541918755
+    "train_time_sec":39.8107244968
   }
 ]

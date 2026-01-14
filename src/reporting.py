@@ -7,9 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-# ============================================================
 # Directory utilities
-# ============================================================
 
 def ensure_reports_dir(path: Path) -> None:
     """Create root reports directory."""
@@ -29,9 +27,7 @@ def ensure_subdirs(reports_dir: Path) -> None:
         (reports_dir / sub).mkdir(parents=True, exist_ok=True)
 
 
-# ============================================================
 # Save utilities
-# ============================================================
 
 def save_metrics(
     metrics_rows: List[Dict],
@@ -77,9 +73,7 @@ def save_log(
     pd.DataFrame(log_rows).to_csv(out_dir / filename, index=False)
 
 
-# ============================================================
 # Metrics plots
-# ============================================================
 
 def plot_metrics(
     metrics_rows: List[Dict],
@@ -125,9 +119,7 @@ def plot_metrics(
     plt.close(fig)
 
 
-# ============================================================
 # GA convergence plots
-# ============================================================
 
 def plot_ga_history(
     log_csv: Path,
@@ -185,4 +177,3 @@ def plot_training_time_comparison(results, save_path):
     plt.tight_layout()
     plt.savefig(save_path)
     plt.close()
-    

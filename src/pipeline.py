@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 from sklearn.metrics import classification_report
-
+from experiments import run_experiments
 from config import Config
 from data import load_and_preprocess
 from eda import run_eda
@@ -166,3 +166,13 @@ def run_all(config: Config) -> None:
     )
     
     print("\nReports saved in the reports folder.")
+
+    if config.run_experiments:
+        print("\nAdditional training - experimental model variants\n")
+        run_experiments(
+        config=config,
+        dataset=dataset,
+        results_prod=results,
+        ga_al_result=ga_al_result,
+        toolbox_al=toolbox_al,
+        )

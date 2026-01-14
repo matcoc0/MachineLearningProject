@@ -9,7 +9,7 @@ from metrics import compute_metrics
 from reporting import save_metrics, plot_metrics
 
 
-# get prod (pipeline) results
+# Helpers
 
 def _as_prod_rows(results_prod: List[Dict]) -> List[Dict]:
     """
@@ -24,7 +24,7 @@ def _as_prod_rows(results_prod: List[Dict]) -> List[Dict]:
     return out
 
 
-# ga configuration for variants
+# GA configuration for variants
 
 def _run_ga_variant_and_eval(
     *,
@@ -34,7 +34,14 @@ def _run_ga_variant_and_eval(
     active_learning: bool,
     ga_overrides: Optional[dict] = None,
 ) -> Tuple[Dict, object]:
+    """
+    Run a GA / GA+AL variant and evaluate it.
+    Logs explicitly include the variant name.
+    """
     ga_overrides = ga_overrides or {}
+
+    model_name = f"EXPERIMENT | {name}"
+
     ga_result = run_ga(
         dataset.x_train,
         dataset.y_train,
@@ -70,6 +77,7 @@ def _run_ga_variant_and_eval(
         al_strategy=ga_overrides.get(
             "al_strategy", config.al_strategy
         ),
+        model_name=model_name,   
     )
 
     toolbox = build_toolbox(
@@ -112,6 +120,8 @@ def _run_ga_experiments_only_variants(
     """
     results = []
 
+    print("\n[EXPERIMENTS] Running GA variants...")
+
     # Variant 1: shallow trees
     m, _ = _run_ga_variant_and_eval(
         name="GA variant - shallow trees (h=3)",
@@ -145,6 +155,8 @@ def _run_ga_al_experiments_only_variants(
     GA + Active Learning variants (baseline already evaluated in PROD).
     """
     results = []
+
+    print("\n[EXPERIMENTS] Running GA+AL variants...")
 
     # Variant 1: aggressive AL
     m, _ = _run_ga_variant_and_eval(
@@ -182,6 +194,8 @@ def _run_ensemble_variants_only(
     """
     results = []
 
+    print("\n[EXPERIMENTS] Running Ensemble variants...")
+
     for voting in ["hard", "weighted", "diversity"]:
         preds = ensemble_predict(
             ga_al_result.population,
@@ -206,7 +220,8 @@ def _run_ensemble_variants_only(
     return results
 
 
-# main
+# Main entry point
+
 def run_experiments(
     config: Config,
     dataset,

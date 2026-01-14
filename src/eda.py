@@ -13,9 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 
-# ============================================================
 # Utilities
-# ============================================================
 
 def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
@@ -50,9 +48,7 @@ def _ks_statistic(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.max(np.abs(cdf_a - cdf_b)))
 
 
-# ============================================================
 # Main EDA
-# ============================================================
 
 def run_eda(
     data_path: str,
@@ -62,9 +58,7 @@ def run_eda(
 ) -> None:
     t0 = time.perf_counter()
 
-    # --------------------------------------------------------
     # Directories
-    # --------------------------------------------------------
     data_dir = reports_dir / "data"
     corr_dir = data_dir / "correlations"
     pca_dir = data_dir / "pca"
@@ -72,24 +66,18 @@ def run_eda(
     for d in [data_dir, corr_dir, pca_dir]:
         _ensure_dir(d)
 
-    # --------------------------------------------------------
     # Load dataset
-    # --------------------------------------------------------
     print("[EDA] Loading dataset...")
     df = pd.read_csv(data_path, compression="gzip")
 
-    # --------------------------------------------------------
     # Drop non-feature columns
-    # --------------------------------------------------------
     drop_cols = ["EventId", "Weight", "KaggleSet", "KaggleWeight"]
     df = df.drop(columns=[c for c in drop_cols if c in df.columns])
 
     if "Label" not in df.columns:
         raise ValueError("Expected 'Label' column in dataset.")
 
-    # --------------------------------------------------------
     # Dataset overview
-    # --------------------------------------------------------
     overview = {
         "n_rows": int(df.shape[0]),
         "n_cols": int(df.shape[1]),
@@ -100,9 +88,7 @@ def run_eda(
         json.dumps(overview, indent=2)
     )
 
-    # --------------------------------------------------------
     # Label analysis
-    # --------------------------------------------------------
     label_counts = df["Label"].value_counts()
     label_counts.to_csv(data_dir / "label_counts.csv")
 
@@ -113,22 +99,16 @@ def run_eda(
     fig.savefig(data_dir / "label_distribution.png")
     plt.close(fig)
 
-    # --------------------------------------------------------
     # Feature matrix
-    # --------------------------------------------------------
     X = df.drop(columns=["Label"]).replace(-999.0, np.nan)
     y = df["Label"].map({"b": 0, "s": 1}).astype(int).to_numpy()
     feature_names = list(X.columns)
 
-    # --------------------------------------------------------
     # Missing values
-    # --------------------------------------------------------
     missing_ratio = X.isna().mean().sort_values(ascending=False)
     missing_ratio.to_csv(data_dir / "missing_values_ratio.csv")
 
-    # --------------------------------------------------------
     # Feature summary
-    # --------------------------------------------------------
     rows = []
     for col in feature_names:
         x = X[col].to_numpy()
@@ -148,9 +128,7 @@ def run_eda(
         data_dir / "feature_summary.csv", index=False
     )
 
-    # --------------------------------------------------------
     # Correlations
-    # --------------------------------------------------------
     corr = X.corr()
     corr.to_csv(corr_dir / "correlation_matrix.csv")
 
@@ -162,9 +140,7 @@ def run_eda(
     fig.savefig(corr_dir / "correlation_heatmap.png")
     plt.close(fig)
 
-    # --------------------------------------------------------
     # Train / test distribution shift
-    # --------------------------------------------------------
     X_np = X.to_numpy()
     X_train, X_test, _, _ = train_test_split(
         X_np, y, test_size=test_size, random_state=seed, stratify=y
@@ -179,9 +155,7 @@ def run_eda(
         data_dir / "train_test_shift.csv", index=False
     )
 
-    # --------------------------------------------------------
     # PCA (imputed + scaled)
-    # --------------------------------------------------------
     X_pca = X.fillna(X.mean())
     X_scaled = StandardScaler().fit_transform(X_pca)
 
