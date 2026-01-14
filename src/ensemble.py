@@ -30,22 +30,15 @@ def _hard_voting(raw_scores: list[np.ndarray]) -> np.ndarray:
 def _weighted_voting(raw_scores: list[np.ndarray], weights: np.ndarray) -> np.ndarray:
     weights = np.asarray(weights, dtype=float)
     weights = np.nan_to_num(weights, nan=0.0, posinf=0.0, neginf=0.0)
-
-    # weights can be tiny or all zeros depending on fitness distribution
     s = float(np.sum(weights))
     if s <= 1e-12:
-        # fallback: uniform weights (equivalent to soft voting)
         return _soft_voting(raw_scores)
-
     weights = weights / s
     scores = np.average(np.vstack(raw_scores), axis=0, weights=weights)
     return (scores > 0).astype(int)
 
 
 def _diversity_subset(population, max_k: int):
-    """
-    Diversity heuristic: prefer different tree heights, from the best individuals first.
-    """
     selected = []
     seen_heights = set()
 
@@ -59,7 +52,6 @@ def _diversity_subset(population, max_k: int):
         if len(selected) >= max_k:
             break
 
-    # if not enough unique heights, fill with remaining best
     if len(selected) < max_k:
         for ind in population:
             if ind not in selected:
@@ -77,6 +69,7 @@ def ensemble_predict(
     ensemble_size: int,
     voting: str = "soft",
 ) -> np.ndarray:
+    print("[GA+AL+EL] Using final GA population for ensemble inference")
     if len(population) == 0:
         raise ValueError("Population is empty.")
 
@@ -84,12 +77,11 @@ def ensemble_predict(
     if k <= 0:
         raise ValueError("ensemble_size must be >= 1.")
 
-    # Always start from best individuals
+    # start from best individuals
     best_pool = tools.selBest(population, min(len(population), max(k * 5, k)))
 
     if voting == "diversity":
         selected = _diversity_subset(best_pool, k)
-        # voting for diversity strategy = soft on diversified subset
         raw_scores = [_compile_and_predict(ind, toolbox, x) for ind in selected]
         return _soft_voting(raw_scores)
 
@@ -98,14 +90,12 @@ def ensemble_predict(
 
     if voting == "soft":
         return _soft_voting(raw_scores)
-
     if voting == "hard":
         return _hard_voting(raw_scores)
-
     if voting == "weighted":
         weights = np.array([float(ind.fitness.values[0]) for ind in selected], dtype=float)
         return _weighted_voting(raw_scores, weights)
 
     raise ValueError(
-        f"Unknown voting strategy '{voting}'. Choose from {{'soft','hard','weighted','diversity'}}."
+        f"Unknown voting strategy '{voting}'. Choose from {'soft','hard','weighted','diversity'}."
     )

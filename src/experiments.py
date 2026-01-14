@@ -9,9 +9,7 @@ from metrics import compute_metrics
 from reporting import save_metrics, plot_metrics
 
 
-# ============================================================
-# Helpers
-# ============================================================
+# get prod (pipeline) results
 
 def _as_prod_rows(results_prod: List[Dict]) -> List[Dict]:
     """
@@ -26,9 +24,7 @@ def _as_prod_rows(results_prod: List[Dict]) -> List[Dict]:
     return out
 
 
-# ============================================================
-# Generic GA runner for variants
-# ============================================================
+# ga configuration for variants
 
 def _run_ga_variant_and_eval(
     *,
@@ -39,7 +35,6 @@ def _run_ga_variant_and_eval(
     ga_overrides: Optional[dict] = None,
 ) -> Tuple[Dict, object]:
     ga_overrides = ga_overrides or {}
-
     ga_result = run_ga(
         dataset.x_train,
         dataset.y_train,
@@ -106,9 +101,7 @@ def _run_ga_variant_and_eval(
     return metrics, ga_result
 
 
-# ============================================================
 # GA variants
-# ============================================================
 
 def _run_ga_experiments_only_variants(
     config: Config,
@@ -121,7 +114,7 @@ def _run_ga_experiments_only_variants(
 
     # Variant 1: shallow trees
     m, _ = _run_ga_variant_and_eval(
-        name="GA variant ... shallow trees (h=3)",
+        name="GA variant - shallow trees (h=3)",
         dataset=dataset,
         config=config,
         active_learning=False,
@@ -131,7 +124,7 @@ def _run_ga_experiments_only_variants(
 
     # Variant 2: larger population
     m, _ = _run_ga_variant_and_eval(
-        name="GA variant ... large population (x2)",
+        name="GA variant - larger population (x2)",
         dataset=dataset,
         config=config,
         active_learning=False,
@@ -142,9 +135,7 @@ def _run_ga_experiments_only_variants(
     return results
 
 
-# ============================================================
 # GA + Active Learning variants
-# ============================================================
 
 def _run_ga_al_experiments_only_variants(
     config: Config,
@@ -157,7 +148,7 @@ def _run_ga_al_experiments_only_variants(
 
     # Variant 1: aggressive AL
     m, _ = _run_ga_variant_and_eval(
-        name="GA+AL variant ... aggressive sampling (x2)",
+        name="GA+AL variant - aggressive sampling (x2)",
         dataset=dataset,
         config=config,
         active_learning=True,
@@ -167,7 +158,7 @@ def _run_ga_al_experiments_only_variants(
 
     # Variant 2: conservative AL
     m, _ = _run_ga_variant_and_eval(
-        name="GA+AL variant ... conservative interval (x2)",
+        name="GA+AL variant - conservative interval (x2)",
         dataset=dataset,
         config=config,
         active_learning=True,
@@ -178,9 +169,7 @@ def _run_ga_al_experiments_only_variants(
     return results
 
 
-# ============================================================
 # Ensemble variants
-# ============================================================
 
 def _run_ensemble_variants_only(
     config: Config,
@@ -205,7 +194,7 @@ def _run_ensemble_variants_only(
         m = compute_metrics(dataset.y_test, preds)
         m.update(
             {
-                "approach": f"GA+AL+EL variant ... {voting}",
+                "approach": f"GA+AL+EL variant - {voting} voting",
                 "category": "experiment",
                 "experiment_group": "GA+AL+EL",
                 "voting": voting,
@@ -217,10 +206,7 @@ def _run_ensemble_variants_only(
     return results
 
 
-# ============================================================
-# Public API
-# ============================================================
-
+# main
 def run_experiments(
     config: Config,
     dataset,
@@ -274,4 +260,4 @@ def run_experiments(
         filename="experiments_metrics_plot.png",
     )
 
-    print("[EXPERIMENTS] Done ... results saved to:", out_dir)
+    print("[EXPERIMENTS] Done - results saved to:", out_dir)

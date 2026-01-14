@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import time
@@ -16,13 +17,13 @@ from reporting import (
     save_metrics,
     plot_metrics,
     plot_ga_history,
+    plot_training_time_comparison
 )
-
 
 def run_all(config: Config) -> None:
     ensure_reports_dir(config.reports_dir)
     ensure_subdirs(config.reports_dir)
-    
+
     if config.run_eda:
         run_eda(
             data_path=str(config.data_path),
@@ -52,9 +53,25 @@ def run_all(config: Config) -> None:
         seed=config.random_seed,
     )
 
+    save_log(ga_result.log, config.reports_dir / "training", "ga_log.csv")
+    plot_ga_history(
+        config.reports_dir / "training" / "ga_log.csv",
+        config.reports_dir / "training",
+        "ga",
+    )
+
     toolbox = build_toolbox(dataset.x_train.shape[1], config.random_seed, config.max_tree_height)
     preds_ga, _ = predict_with_individual(toolbox, ga_result.best_individual, dataset.x_test)
-
+    print("\n[GA] Classification report (test set)")
+    
+    print(
+        classification_report(
+            dataset.y_test,
+            preds_ga,
+            digits=4,
+            zero_division=0,
+        )
+    )
     results.append(
         {
             **compute_metrics(dataset.y_test, preds_ga),
@@ -62,8 +79,6 @@ def run_all(config: Config) -> None:
             "train_time_sec": ga_result.train_time_sec,
         }
     )
-
-    save_log(ga_result.log, config.reports_dir / "training", "ga_log.csv")
 
     print("\nRunning GA + AL...")
     ga_al_result = run_ga(
@@ -83,8 +98,26 @@ def run_all(config: Config) -> None:
         al_strategy=config.al_strategy,
     )
 
+    save_log(ga_al_result.log, config.reports_dir / "training", "ga_al_log.csv")
+    plot_ga_history(
+        config.reports_dir / "training" / "ga_al_log.csv",
+        config.reports_dir / "training",
+        "ga_al",
+    )
+
     toolbox_al = build_toolbox(dataset.x_train.shape[1], config.random_seed, config.max_tree_height)
     preds_al, _ = predict_with_individual(toolbox_al, ga_al_result.best_individual, dataset.x_test)
+
+    print("\n[GA+AL] Classification report (test set)")
+    print(
+        classification_report(
+            dataset.y_test,
+            preds_al,
+            digits=4,
+            zero_division=0,
+        )
+    )
+
 
     results.append(
         {
@@ -94,9 +127,9 @@ def run_all(config: Config) -> None:
         }
     )
 
-    save_log(ga_al_result.log, config.reports_dir / "training", "ga_al_log.csv")
+    print("\n[GA+AL+EL] Building ensemble from final population (last generation)")
+    print("[GA+AL+EL] Evaluating ensemble on test set")
 
-    print("\nRunning Ensemble (soft voting)...")
     preds_soft = ensemble_predict(
         ga_al_result.population,
         toolbox_al,
@@ -104,6 +137,17 @@ def run_all(config: Config) -> None:
         config.ensemble_size,
         voting="soft",
     )
+
+    print("\n[GA+AL] Classification report (test set)")
+    print(
+        classification_report(
+            dataset.y_test,
+            preds_soft,
+            digits=4,
+            zero_division=0,
+        )
+    )
+
 
     results.append(
         {
@@ -115,19 +159,10 @@ def run_all(config: Config) -> None:
 
     save_metrics(results, config.reports_dir / "results")
     plot_metrics(results, config.reports_dir / "results")
+
+    plot_training_time_comparison(
+        results,
+        config.reports_dir / "results" / "training_time_comparison.png",
+    )
     
     print("\nReports saved in the reports folder.")
-
-    # 🔥 EXPERIMENTS (ONLY HERE)
-    if config.run_experiments:
-        from experiments import run_experiments
-
-        run_experiments(
-            config,
-            dataset,
-            results,
-            ga_al_result,
-            toolbox_al,
-        )
-
-    print("\nExprimental Results saved in the reports/results/experimental folder.")

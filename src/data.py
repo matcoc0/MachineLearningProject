@@ -12,9 +12,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 
-# ============================================================
 # Dataset container
-# ============================================================
 
 @dataclass
 class DatasetSplit:
@@ -25,9 +23,7 @@ class DatasetSplit:
     feature_names: List[str]
 
 
-# ============================================================
 # Loader + preprocessing
-# ============================================================
 
 def load_and_preprocess(
     data_path: str,
@@ -59,9 +55,7 @@ def load_and_preprocess(
     if "Label" not in df.columns:
         raise ValueError("Expected 'Label' column in dataset.")
 
-    # --------------------------------------------------------
     # Labels
-    # --------------------------------------------------------
     y = (
         df.pop("Label")
         .map({"b": 0, "s": 1})
@@ -69,15 +63,11 @@ def load_and_preprocess(
         .to_numpy()
     )
 
-    # --------------------------------------------------------
     # Features
-    # --------------------------------------------------------
     X = df.replace(-999.0, np.nan).astype(np.float32)
     feature_names = list(X.columns)
 
-    # --------------------------------------------------------
     # Train / test split
-    # --------------------------------------------------------
     X_train, X_test, y_train, y_test = train_test_split(
         X.to_numpy(),
         y,
@@ -86,9 +76,7 @@ def load_and_preprocess(
         stratify=y,
     )
 
-    # --------------------------------------------------------
     # Imputation + scaling (fit on train only)
-    # --------------------------------------------------------
     imputer = SimpleImputer(strategy="mean")
     scaler = StandardScaler()
 

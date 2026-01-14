@@ -9,14 +9,14 @@ class Config:
     reports_dir: Path = Path("reports")
 
     # Global switches
-    run_eda: bool = True
-    run_experiments: bool = False  # to run experiments after prod
+    run_eda: bool = False
+    run_experiments: bool = True  # to run experiments after prod
 
     # Reproducibility
     random_seed: int = 42
     test_size: float = 0.2
 
-    # Genetic Algorithm (PROD defaults)
+    # Genetic Algorithm 
     population_size: int = 200
     generations: int = 30
     crossover_prob: float = 0.5
@@ -29,7 +29,7 @@ class Config:
     al_initial_fraction: float = 0.1
     al_samples_per_round: int = 5000
     al_interval: int = 2
-    al_strategy: str = "uncertainty"  # "uncertainty" | "random"
+    al_strategy: str = "uncertainty"  # can be "random"
 
     # Ensemble
     ensemble_size: int = 15

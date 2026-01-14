@@ -165,3 +165,24 @@ def plot_ga_history(
     fig.tight_layout()
     fig.savefig(out_dir / f"{prefix}_training_size.png")
     plt.close(fig)
+
+# training time plot
+def plot_training_time_comparison(results, save_path):
+    """
+    results: list of dicts with keys:
+        - approach
+        - train_time_sec
+    """
+
+    labels = [r["approach"] for r in results]
+    times = [r["train_time_sec"] for r in results]
+
+    plt.figure(figsize=(7, 4))
+    plt.bar(labels, times)
+    plt.ylabel("Training time (seconds)")
+    plt.title("Comparison of Training Times")
+    plt.xticks(rotation=20)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+    

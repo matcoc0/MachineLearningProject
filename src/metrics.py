@@ -12,9 +12,7 @@ from sklearn.metrics import (
 )
 
 
-# ============================================================
 # Internal utilities
-# ============================================================
 
 def _ensure_vector(outputs, n_rows: int) -> np.ndarray:
     """
@@ -34,9 +32,7 @@ def _sanitize_outputs(outputs: np.ndarray) -> np.ndarray:
     return np.nan_to_num(outputs, nan=0.0, posinf=0.0, neginf=0.0)
 
 
-# ============================================================
 # Prediction helpers
-# ============================================================
 
 def predict_with_individual(
     toolbox,
@@ -63,9 +59,7 @@ def predict_with_individual(
     return y_pred, scores
 
 
-# ============================================================
 # Metrics
-# ============================================================
 
 def compute_metrics(
     y_true: np.ndarray,
