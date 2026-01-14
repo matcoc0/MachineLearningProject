@@ -44,3 +44,4 @@ You can edit settings in `src/config.py`, including:
 - Population size and genetic operators
 - Active learning sampling settings
 - Ensemble size
+- Switch Variables : to run the EDA analysis and the training experiments
